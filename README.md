@@ -2,13 +2,13 @@
 
 > **Unified Protein Developability Platform**
 >
-> Open-source library for assessing therapeutic protein developability
+> Open-source, CPU-only library for assessing therapeutic protein developability
 
 ---
 
 ## Overview
 
-ProteinScore is the **first open-source platform** that unifies protein developability assessment into domain-specific modules. Each module provides comprehensive metrics for its protein class, with a unified scoring system (0-100).
+ProteinScore is the **first open-source, CPU-only platform** that unifies protein developability assessment into domain-specific modules. Each module provides comprehensive metrics for its protein class, with a unified scoring system (0-100).
 
 ### Why ProteinScore?
 
@@ -16,9 +16,22 @@ ProteinScore is the **first open-source platform** that unifies protein developa
 |---------|---------------|----------------------|
 | **Fragmented Tools** | 6-8 separate tools for developability | Single unified interface |
 | **No Integration** | Manual data transfer between tools | Automated pipeline |
+| **GPU Required** | Most modern tools need expensive GPUs | CPU-only, runs anywhere |
 | **Missing Immunogenicity** | Expensive commercial tools only | Free RIP API integration |
 | **No Standard Score** | Different scales, formats | 0-100 unified score |
 | **Domain-Specific Needs** | Generic tools for all proteins | Specialized modules per protein class |
+
+### Performance Context
+
+ProteinScore prioritizes **accessibility and integration** over maximum accuracy. For context:
+
+| Approach | Thermostability | Antibody Developability | Requirements |
+|----------|-----------------|------------------------|--------------|
+| **ESM2-based models** | R² ≈ 0.95 | Varies by property | GPU required |
+| **Structure-based (TAP)** | N/A | AUC ≈ 0.85 for HIC | 3D structure |
+| **ProteinScore (CPU)** | r ≈ 0.70-0.80 | ρ ≈ 0.15-0.22 | CPU only |
+
+> **Note**: Recent benchmarks ([FLAb2, 2025](https://www.biorxiv.org/content/10.64898/2025.12.27.696706v1)) show that even GPU-based AI models fail to achieve significant correlations for 80% of developability datasets. Sequence-only predictions have fundamental limitations regardless of computational resources.
 
 ---
 
@@ -61,10 +74,11 @@ proteinscore/
 ### Design Principles
 
 - **Developability Focus**: All metrics assess manufacturability, not function/activity
-- **CPU-Only**: No GPU required, runs on any machine
+- **CPU-Only**: No GPU required, runs on any machine (laptop, CI/CD, cloud)
 - **Modular**: Use only what you need
 - **Unified Scoring**: 0-100 scale across all modules
 - **Production Ready**: Structured logging, error handling, health checks
+- **Honest Benchmarks**: Transparent about limitations and expected accuracy
 
 ---
 
@@ -386,6 +400,11 @@ If you use ProteinScore in your research, please cite:
 ### General Methods
 - Sormanni et al. (2015). CamSol: Solubility prediction. *J Mol Biol*
 - Fernandez-Escamilla et al. (2004). TANGO: Aggregation prediction. *Nat Biotechnol*
+
+### Benchmarking & Validation
+- Chungyoun & Gray (2025). [FLAb2: Benchmarking Reveals That Protein AI Models Cannot Yet Consistently Predict Developability Properties](https://www.biorxiv.org/content/10.64898/2025.12.27.696706v1). *bioRxiv*
+- [ESMStabP](https://pmc.ncbi.nlm.nih.gov/articles/PMC11870573/): ESM2-based thermostability prediction (GPU)
+- [TAP Web Server](https://opig.stats.ox.ac.uk/webapps/sabdab-sabpred/sabpred/tap): Structure-based antibody profiling
 
 ---
 
