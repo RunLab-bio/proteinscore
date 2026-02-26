@@ -220,8 +220,6 @@ def calculate_sequence_properties(sequence: str) -> dict[str, float]:
     charged_pos = set("KRH")
     charged_neg = set("DE")
     aromatic = set("FWY")
-    tiny = set("AGS")
-    small = set("ACDGNPSTV")
 
     length = len(sequence)
 

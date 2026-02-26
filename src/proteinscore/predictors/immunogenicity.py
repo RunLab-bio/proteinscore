@@ -196,7 +196,6 @@ class ImmunogenicityPredictor(BasePredictor[ImmunogenicityResult]):
 
             if response.status_code == 429:
                 # Rate limited
-                retry_after = response.headers.get("X-RateLimit-Reset")
                 raise RateLimitError(
                     "RIP API rate limit exceeded",
                     limit=int(response.headers.get("X-RateLimit-Limit", 0)),

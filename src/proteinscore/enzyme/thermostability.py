@@ -15,7 +15,6 @@ References:
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -23,13 +22,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from proteinscore.predictors.base import BasePredictor
 from proteinscore.predictors.stability import (
-    BURIAL_PROPENSITY,
-    CONFORMATIONAL_ENTROPY,
-    DIPEPTIDE_STABILITY,
     HELIX_PROPENSITY,
     HYDROPHOBICITY,
     SHEET_PROPENSITY,
-    THERMOPHILE_PREFERENCE,
 )
 
 if TYPE_CHECKING:

@@ -183,7 +183,6 @@ class TAPResult:
         Overall developability score (0-100).
         Based on number of green flags.
         """
-        green_count = sum(1 for m in self.all_metrics if m.flag == TAPFlag.GREEN)
         amber_count = sum(1 for m in self.all_metrics if m.flag == TAPFlag.AMBER)
 
         # 100 for all green, subtract for amber/red

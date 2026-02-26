@@ -6,8 +6,6 @@ CLI for protein developability scoring.
 
 from __future__ import annotations
 
-import json
-import sys
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -247,7 +245,7 @@ def _display_result(result, verbose: bool = False) -> None:
         "high": "red",
     }[result.risk_level.value]
 
-    console.print(f"\n[bold]ProteinScore Result[/bold]")
+    console.print("\n[bold]ProteinScore Result[/bold]")
     if result.name:
         console.print(f"Name: {result.name}")
     console.print(f"Length: {result.sequence_length} residues")
