@@ -45,13 +45,56 @@ DEFAULT_HLA_ALLELES = {
 }
 
 # Local estimation scales (for fallback when API unavailable)
-# Based on NetMHCpan binding motifs
-LOCAL_BINDING_SCORES = {
-    # Position 2 (P2) anchor preferences for HLA-A*02:01
-    "P2": {"L": 0.9, "M": 0.8, "V": 0.7, "I": 0.6, "A": 0.5, "T": 0.4},
-    # Position 9 (P9/Omega) anchor preferences
-    "P9": {"V": 0.9, "L": 0.85, "I": 0.8, "A": 0.6, "T": 0.5, "M": 0.7},
+# Multi-allele binding motifs derived from IEDB and NetMHCpan
+LOCAL_BINDING_MOTIFS = {
+    # HLA-A*02:01 (most common globally, ~45% population)
+    "HLA-A*02:01": {
+        "P2": {"L": 0.9, "M": 0.8, "V": 0.7, "I": 0.6, "A": 0.5, "T": 0.4},
+        "P9": {"V": 0.9, "L": 0.85, "I": 0.8, "A": 0.6, "T": 0.5, "M": 0.7},
+        "coverage": 0.45,
+    },
+    # HLA-A*01:01 (~15% European, ~10% global)
+    "HLA-A*01:01": {
+        "P2": {"T": 0.85, "S": 0.8, "M": 0.7, "I": 0.6, "L": 0.5},
+        "P9": {"Y": 0.9, "F": 0.85, "W": 0.8, "L": 0.6},
+        "coverage": 0.12,
+    },
+    # HLA-A*03:01 (~15% European, A3 supertype)
+    "HLA-A*03:01": {
+        "P2": {"L": 0.85, "V": 0.8, "M": 0.75, "I": 0.7, "A": 0.5},
+        "P9": {"K": 0.9, "R": 0.85, "Y": 0.7, "F": 0.6},
+        "coverage": 0.10,
+    },
+    # HLA-A*24:02 (~20% Asian, ~10% global)
+    "HLA-A*24:02": {
+        "P2": {"Y": 0.9, "F": 0.85, "W": 0.8, "M": 0.6},
+        "P9": {"F": 0.9, "L": 0.85, "I": 0.8, "W": 0.75},
+        "coverage": 0.12,
+    },
+    # HLA-B*07:02 (~15% European)
+    "HLA-B*07:02": {
+        "P2": {"P": 0.9, "A": 0.7, "S": 0.6},
+        "P9": {"L": 0.9, "M": 0.8, "I": 0.75, "V": 0.7},
+        "coverage": 0.08,
+    },
 }
+
+# Legacy compatibility
+LOCAL_BINDING_SCORES = LOCAL_BINDING_MOTIFS["HLA-A*02:01"]
+
+# Immunogenicity-reducing mutations (deimmunization targets)
+IMMUNOGENICITY_REDUCERS = {
+    # Anchor position substitutions that reduce binding
+    "P2_reducers": {"G", "D", "E", "K", "R"},
+    "P9_reducers": {"G", "D", "E", "P"},
+}
+
+# Known immunogenic motifs (from clinical data)
+IMMUNOGENIC_MOTIFS = [
+    "GILGFVFTL",  # Influenza M1, very immunogenic
+    "NLVPMVATV",  # CMV pp65
+    "GLCTLVAML",  # EBV BMLF1
+]
 
 
 class ImmunogenicityPredictor(BasePredictor[ImmunogenicityResult]):
@@ -223,86 +266,136 @@ class ImmunogenicityPredictor(BasePredictor[ImmunogenicityResult]):
 
     def _predict_local(self, sequence: str) -> ImmunogenicityResult:
         """
-        Local immunogenicity estimation when API is unavailable.
+        Enhanced local immunogenicity estimation when API is unavailable.
 
-        Uses simplified binding motif analysis based on HLA-A*02:01
-        anchor preferences. Less accurate than RIP API but provides
-        reasonable estimates.
+        Uses multi-allele binding motif analysis covering:
+        - HLA-A*02:01 (~45% global)
+        - HLA-A*01:01 (~12% global)
+        - HLA-A*03:01 (~10% global)
+        - HLA-A*24:02 (~12% global)
+        - HLA-B*07:02 (~8% global)
+
+        Combined population coverage: ~70%
         """
-        epitopes = []
+        all_epitopes = []
         per_residue_risk = [0.0] * len(sequence)
+        total_coverage = 0.0
 
         # Generate all 9-mer peptides
         peptide_length = 9
+
         for i in range(len(sequence) - peptide_length + 1):
             peptide = sequence[i:i + peptide_length]
 
-            # Calculate binding score based on anchor residues
-            p2_score = LOCAL_BINDING_SCORES["P2"].get(peptide[1], 0.2)
-            p9_score = LOCAL_BINDING_SCORES["P9"].get(peptide[8], 0.2)
+            # Analyze against each allele
+            for allele, motif in LOCAL_BINDING_MOTIFS.items():
+                binding_score = self._calculate_local_binding_score(peptide, motif)
 
-            binding_score = (p2_score * 0.4 + p9_score * 0.4 + 0.2)
+                if binding_score > 0.65:  # Potential binder threshold
+                    is_strong = binding_score > 0.82
+                    is_weak = binding_score > 0.65
 
-            # Convert to pseudo-affinity
-            pseudo_affinity = 1000 * (1 - binding_score)
-            percentile = (1 - binding_score) * 10
+                    # Convert to pseudo-affinity
+                    pseudo_affinity = 1000 * (1 - binding_score)
+                    percentile = (1 - binding_score) * 10
 
-            # More stringent thresholds for local estimation
-            # Only ~10-20% of peptides should be classified as binders
-            if binding_score > 0.7:  # Potential binder threshold
-                is_strong = binding_score > 0.85
-                is_weak = binding_score > 0.7
+                    all_epitopes.append(Epitope(
+                        peptide=peptide,
+                        position=(i, i + peptide_length),
+                        allele=allele,
+                        binding_affinity_nM=round(pseudo_affinity, 1),
+                        percentile_rank=round(percentile, 2),
+                        is_strong_binder=is_strong,
+                        is_weak_binder=is_weak,
+                        confidence=0.65,
+                    ))
 
-                epitopes.append(Epitope(
-                    peptide=peptide,
-                    position=(i, i + peptide_length),
-                    allele="HLA-A*02:01",  # Local estimation uses A*02:01 motif
-                    binding_affinity_nM=round(pseudo_affinity, 1),
-                    percentile_rank=round(percentile, 2),
-                    is_strong_binder=is_strong,
-                    is_weak_binder=is_weak,
-                    confidence=0.6,  # Lower confidence for local estimation
-                ))
+                    # Update per-residue risk (weighted by allele coverage)
+                    coverage_weight = motif.get("coverage", 0.1)
+                    for j in range(peptide_length):
+                        per_residue_risk[i + j] = max(
+                            per_residue_risk[i + j],
+                            binding_score * coverage_weight * 2
+                        )
 
-                # Update per-residue risk
-                for j in range(peptide_length):
-                    per_residue_risk[i + j] = max(
-                        per_residue_risk[i + j],
-                        binding_score
-                    )
+        # Calculate total population coverage
+        for motif in LOCAL_BINDING_MOTIFS.values():
+            total_coverage += motif.get("coverage", 0.1)
+        total_coverage = min(0.70, total_coverage)
 
-        # Sort epitopes by binding score
-        epitopes.sort(key=lambda e: e.binding_affinity_nM)
+        # Check for known immunogenic motifs
+        known_motif_penalty = 0
+        for motif in IMMUNOGENIC_MOTIFS:
+            if motif in sequence:
+                known_motif_penalty += 10
+
+        # Remove duplicate epitopes (same peptide, different alleles)
+        # Keep only highest-scoring per position
+        seen_positions: dict[int, Epitope] = {}
+        for ep in all_epitopes:
+            pos = ep.position[0]
+            if pos not in seen_positions or ep.binding_affinity_nM < seen_positions[pos].binding_affinity_nM:
+                seen_positions[pos] = ep
+
+        unique_epitopes = list(seen_positions.values())
+        unique_epitopes.sort(key=lambda e: e.binding_affinity_nM)
 
         # Calculate overall score
-        # All proteins have epitopes - scoring should reflect relative immunogenicity
-        strong_binders = sum(1 for e in epitopes if e.is_strong_binder)
-        weak_binders = sum(1 for e in epitopes if e.is_weak_binder and not e.is_strong_binder)
+        strong_binders = sum(1 for e in unique_epitopes if e.is_strong_binder)
+        weak_binders = sum(1 for e in unique_epitopes if e.is_weak_binder and not e.is_strong_binder)
 
-        # Normalize by sequence length (expected epitopes = length / 9)
+        # Normalize by sequence length
         expected_epitopes = len(sequence) / 9
         strong_ratio = strong_binders / max(expected_epitopes, 1)
         weak_ratio = weak_binders / max(expected_epitopes, 1)
 
-        # Typical ratios: strong ~5-15%, weak ~20-40%
-        # Score 100 = no strong binders, few weak (ratio < 0.05)
-        # Score 70 = average (ratio ~0.1 strong, ~0.3 weak)
-        # Score 40 = high immunogenicity (ratio > 0.2 strong)
-        penalty = strong_ratio * 150 + weak_ratio * 30
+        # Scoring: higher coverage means more reliable penalty
+        penalty = (strong_ratio * 120 + weak_ratio * 25) * (total_coverage / 0.5)
+        penalty += known_motif_penalty
 
         score = max(0, min(100, 100 - penalty))
 
         return ImmunogenicityResult(
             score=round(score, 1),
-            epitope_count=len(epitopes),
+            epitope_count=len(unique_epitopes),
             strong_binders=strong_binders,
             weak_binders=weak_binders,
-            epitopes=epitopes[:50],
-            per_residue_risk=[round(r, 3) for r in per_residue_risk],
-            population_coverage=0.45,  # HLA-A*02:01 covers ~45% globally
+            epitopes=unique_epitopes[:50],
+            per_residue_risk=[round(min(1.0, r), 3) for r in per_residue_risk],
+            population_coverage=round(total_coverage, 2),
             method="local_estimate",
-            confidence=0.65,  # Lower confidence for local estimation
+            confidence=0.70,  # Improved confidence with multi-allele
         )
+
+    def _calculate_local_binding_score(
+        self,
+        peptide: str,
+        motif: dict,
+    ) -> float:
+        """Calculate binding score for a peptide against a motif."""
+        if len(peptide) != 9:
+            return 0.0
+
+        p2_scores = motif.get("P2", {})
+        p9_scores = motif.get("P9", {})
+
+        # Position 2 (P2) anchor
+        p2_score = p2_scores.get(peptide[1], 0.2)
+
+        # Position 9 (P9/Omega) anchor
+        p9_score = p9_scores.get(peptide[8], 0.2)
+
+        # Combined score with position weighting
+        # Anchors contribute 40% each, middle residues 20%
+        binding_score = p2_score * 0.4 + p9_score * 0.4 + 0.2
+
+        # Check for immunogenicity-reducing residues
+        if peptide[1] in IMMUNOGENICITY_REDUCERS["P2_reducers"]:
+            binding_score *= 0.5
+        if peptide[8] in IMMUNOGENICITY_REDUCERS["P9_reducers"]:
+            binding_score *= 0.5
+
+        return binding_score
 
     def get_cache_key(self, sequence: str) -> str:
         """Generate cache key for a sequence."""
