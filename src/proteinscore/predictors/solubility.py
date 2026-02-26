@@ -39,6 +39,26 @@ HYDROPATHY = {
     "S": -0.8, "T": -0.7, "W": -0.9, "Y": -1.3, "V": 4.2,
 }
 
+# Burial propensity (likelihood of being buried in core)
+# Used to estimate exposed hydrophobic patches
+BURIAL_PROPENSITY = {
+    "A": 0.74, "R": 0.64, "N": 0.63, "D": 0.62, "C": 0.91,
+    "Q": 0.62, "E": 0.62, "G": 0.72, "H": 0.78, "I": 0.88,
+    "L": 0.85, "K": 0.52, "M": 0.85, "F": 0.88, "P": 0.64,
+    "S": 0.66, "T": 0.70, "W": 0.85, "Y": 0.76, "V": 0.86,
+}
+
+# Strong gatekeeper patterns (flanking hydrophobic stretches)
+STRONG_GATEKEEPERS = {"R", "K", "D", "E"}
+WEAK_GATEKEEPERS = {"P", "G", "H"}
+
+# CamSol correction factors for sequence context
+# Applied when hydrophobic residues are likely exposed
+EXPOSURE_PENALTY = {
+    "I": -0.15, "L": -0.12, "V": -0.10, "F": -0.18,
+    "Y": -0.08, "W": -0.14, "M": -0.08, "C": -0.06,
+}
+
 
 class SolubilityPredictor(BasePredictor[SolubilityResult]):
     """
@@ -69,8 +89,11 @@ class SolubilityPredictor(BasePredictor[SolubilityResult]):
         """
         Predict solubility score for a protein sequence.
 
-        Uses CamSol-derived intrinsic solubility values with
-        window-based smoothing and correction for charged patches.
+        Uses CamSol-derived intrinsic solubility values with:
+        - Window-based smoothing
+        - Correction for charged patches
+        - Exposure penalty for hydrophobic residues
+        - Enhanced gatekeeper detection
 
         Args:
             sequence: Protein sequence (validated)
@@ -84,8 +107,11 @@ class SolubilityPredictor(BasePredictor[SolubilityResult]):
         # Calculate per-residue solubility profile
         raw_profile = self._calculate_raw_profile(sequence)
 
+        # Apply exposure correction (penalize likely-exposed hydrophobics)
+        corrected_profile = self._apply_exposure_correction(sequence, raw_profile)
+
         # Apply window smoothing
-        smoothed_profile = self._smooth_profile(raw_profile, self._window_size)
+        smoothed_profile = self._smooth_profile(corrected_profile, self._window_size)
 
         # Calculate hydrophobicity profile
         hydro_profile = self._calculate_hydropathy(sequence)
@@ -95,11 +121,14 @@ class SolubilityPredictor(BasePredictor[SolubilityResult]):
             sequence, smoothed_profile
         )
 
-        # Calculate gatekeeper bonus
-        gatekeeper_score = self._calculate_gatekeeper_bonus(sequence)
+        # Calculate gatekeeper bonus (enhanced version)
+        gatekeeper_score = self._calculate_gatekeeper_bonus_v2(sequence, insoluble_regions)
 
         # Calculate charged patch bonus
         charge_score = self._calculate_charge_score(sequence)
+
+        # Calculate terminal charge bonus (N/C-terminal charges help solubility)
+        terminal_score = self._calculate_terminal_score(sequence)
 
         # Combine into final score
         # Base score from mean solubility profile
@@ -110,7 +139,7 @@ class SolubilityPredictor(BasePredictor[SolubilityResult]):
         base_score = 50 + mean_sol * 40  # Maps -1.25 to +1.25 → 0 to 100
 
         # Add bonuses
-        final_score = base_score + gatekeeper_score + charge_score
+        final_score = base_score + gatekeeper_score + charge_score + terminal_score
 
         # Penalize for insoluble regions
         region_penalty = len(insoluble_regions) * 3
@@ -137,6 +166,45 @@ class SolubilityPredictor(BasePredictor[SolubilityResult]):
     def _calculate_raw_profile(self, sequence: str) -> list[float]:
         """Calculate raw per-residue intrinsic solubility."""
         return [CAMSOL_INTRINSIC.get(aa, 0.0) for aa in sequence]
+
+    def _apply_exposure_correction(
+        self,
+        sequence: str,
+        profile: list[float],
+    ) -> list[float]:
+        """
+        Apply correction for hydrophobic residues that are likely exposed.
+
+        Uses burial propensity to estimate which hydrophobic residues
+        might be on the surface rather than buried in the core.
+        """
+        if len(sequence) < 11:
+            return profile
+
+        corrected = profile.copy()
+        window = 11
+        half_window = window // 2
+
+        for i in range(len(sequence)):
+            aa = sequence[i]
+            if aa not in EXPOSURE_PENALTY:
+                continue
+
+            # Calculate local burial propensity
+            start = max(0, i - half_window)
+            end = min(len(sequence), i + half_window + 1)
+            window_seq = sequence[start:end]
+
+            avg_burial = sum(BURIAL_PROPENSITY.get(a, 0.7) for a in window_seq) / len(window_seq)
+
+            # If local region has low burial propensity, the hydrophobic
+            # residue is likely exposed → apply penalty
+            if avg_burial < 0.72:  # Threshold for likely exposed
+                exposure_factor = (0.72 - avg_burial) / 0.72
+                penalty = EXPOSURE_PENALTY[aa] * exposure_factor
+                corrected[i] += penalty
+
+        return corrected
 
     def _smooth_profile(
         self,
@@ -206,22 +274,96 @@ class SolubilityPredictor(BasePredictor[SolubilityResult]):
 
     def _calculate_gatekeeper_bonus(self, sequence: str) -> float:
         """Calculate bonus for gatekeeper residues breaking hydrophobic stretches."""
+        return self._calculate_gatekeeper_bonus_v2(sequence, [])
+
+    def _calculate_gatekeeper_bonus_v2(
+        self,
+        sequence: str,
+        insoluble_regions: list[Region],
+    ) -> float:
+        """
+        Enhanced gatekeeper detection with region-specific analysis.
+
+        Strong gatekeepers (R, K, D, E) provide better protection than
+        weak gatekeepers (P, G, H). Also considers positioning relative
+        to identified insoluble regions.
+        """
+        if not sequence:
+            return 0.0
+
         bonus = 0.0
         window = 10
 
+        # General gatekeeper analysis across sequence
         for i in range(len(sequence) - window + 1):
             window_seq = sequence[i:i + window]
 
             # Count hydrophobic and gatekeeper residues
             hydrophobic_count = sum(1 for aa in window_seq if aa in AGGREGATION_PRONE)
-            gatekeeper_count = sum(1 for aa in window_seq if aa in GATEKEEPERS)
+            strong_gk_count = sum(1 for aa in window_seq if aa in STRONG_GATEKEEPERS)
+            weak_gk_count = sum(1 for aa in window_seq if aa in WEAK_GATEKEEPERS)
+
+            # Weighted gatekeeper score
+            gk_score = strong_gk_count * 1.0 + weak_gk_count * 0.5
 
             # Bonus if gatekeepers interrupt hydrophobic stretches
-            if hydrophobic_count >= 5 and gatekeeper_count >= 2:
-                bonus += 1.0
+            if hydrophobic_count >= 5 and gk_score >= 2:
+                bonus += gk_score * 0.5
+
+        # Additional bonus for gatekeepers flanking insoluble regions
+        for region in insoluble_regions:
+            # Check flanking residues (3 AA before and after)
+            flank_start = max(0, region.start - 3)
+            flank_end = min(len(sequence), region.end + 3)
+
+            before = sequence[flank_start:region.start]
+            after = sequence[region.end:flank_end]
+
+            # Strong gatekeepers in flanking regions are protective
+            strong_before = sum(1 for aa in before if aa in STRONG_GATEKEEPERS)
+            strong_after = sum(1 for aa in after if aa in STRONG_GATEKEEPERS)
+
+            if strong_before >= 1 and strong_after >= 1:
+                bonus += 2.0  # Well-protected region
+            elif strong_before >= 1 or strong_after >= 1:
+                bonus += 1.0  # Partially protected
 
         # Normalize by sequence length
-        return min(5.0, bonus * 10 / len(sequence))
+        return min(8.0, bonus * 10 / len(sequence))
+
+    def _calculate_terminal_score(self, sequence: str) -> float:
+        """
+        Calculate bonus for charged N/C-terminal regions.
+
+        Proteins with charged termini tend to have better solubility
+        due to increased surface charge and reduced aggregation.
+        """
+        if len(sequence) < 10:
+            return 0.0
+
+        n_terminal = sequence[:10]
+        c_terminal = sequence[-10:]
+
+        # Count charged residues in terminal regions
+        charged = {"K", "R", "D", "E"}
+
+        n_charged = sum(1 for aa in n_terminal if aa in charged)
+        c_charged = sum(1 for aa in c_terminal if aa in charged)
+
+        # Optimal: 2-4 charged residues per terminal region
+        n_score = 0.0
+        if 2 <= n_charged <= 4:
+            n_score = 1.5
+        elif n_charged >= 1:
+            n_score = 0.75
+
+        c_score = 0.0
+        if 2 <= c_charged <= 4:
+            c_score = 1.5
+        elif c_charged >= 1:
+            c_score = 0.75
+
+        return n_score + c_score
 
     def _calculate_charge_score(self, sequence: str) -> float:
         """Calculate score based on charged residue distribution."""

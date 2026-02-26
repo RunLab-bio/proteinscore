@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-DevScore Benchmark Suite
+ProteinScore Benchmark Suite
 
-Validates that DevScore correctly predicts protein developability by testing
+Validates that ProteinScore correctly predicts protein developability by testing
 against proteins with known experimental properties.
 
 This benchmark demonstrates:
 1. Individual predictor accuracy (stability, solubility, aggregation, immunogenicity)
-2. Integrated DevScore scoring
+2. Integrated ProteinScore scoring
 3. Differentiation between good and poor developability candidates
 4. Performance metrics
 
@@ -30,15 +30,15 @@ from typing import Any
 # Add src to path for local testing
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from devscore import DevScore
-from devscore.models import DevScoreResult, RiskLevel
-from devscore.predictors import (
+from proteinscore import ProteinScore
+from proteinscore.models import ProteinScoreResult, RiskLevel
+from proteinscore.predictors import (
     AggregationPredictor,
     ImmunogenicityPredictor,
     SolubilityPredictor,
     StabilityPredictor,
 )
-from devscore.validation import validate_sequence
+from proteinscore.validation import validate_sequence
 
 
 # =============================================================================
@@ -267,15 +267,15 @@ def run_predictor_tests() -> dict[str, Any]:
 
 
 def run_integrated_scoring_tests() -> dict[str, Any]:
-    """Test integrated DevScore scoring on reference proteins."""
+    """Test integrated ProteinScore scoring on reference proteins."""
     print("\n" + "="*60)
-    print("INTEGRATED DEVSCORE TESTS")
+    print("INTEGRATED PROTEINSCORE TESTS")
     print("="*60)
 
     results = {"proteins": [], "summary": {}}
 
-    # Initialize DevScore (local mode for benchmark)
-    scorer = DevScore(local_only=True)
+    # Initialize ProteinScore (local mode for benchmark)
+    scorer = ProteinScore(local_only=True)
 
     score_results = []
 
@@ -338,14 +338,14 @@ def run_integrated_scoring_tests() -> dict[str, Any]:
 
 
 def run_differentiation_tests() -> dict[str, Any]:
-    """Test that DevScore can differentiate good vs bad candidates."""
+    """Test that ProteinScore can differentiate good vs bad candidates."""
     print("\n" + "="*60)
     print("DIFFERENTIATION TESTS")
     print("="*60)
 
     results = {"tests": [], "passed": 0, "failed": 0}
 
-    scorer = DevScore(local_only=True)
+    scorer = ProteinScore(local_only=True)
 
     # Test pairs: (good candidate, bad candidate)
     test_pairs = [
@@ -411,7 +411,7 @@ def run_batch_performance_tests() -> dict[str, Any]:
 
     results = {}
 
-    scorer = DevScore(local_only=True)
+    scorer = ProteinScore(local_only=True)
     sequences = [p.sequence for p in REFERENCE_PROTEINS]
     names = [p.name for p in REFERENCE_PROTEINS]
 
@@ -464,7 +464,7 @@ def generate_report(all_results: dict[str, Any]) -> str:
     """Generate benchmark report."""
     lines = [
         "="*70,
-        "DEVSCORE BENCHMARK REPORT",
+        "PROTEINSCORE BENCHMARK REPORT",
         f"Generated: {datetime.utcnow().isoformat()}Z",
         "="*70,
         "",
@@ -533,7 +533,7 @@ def generate_report(all_results: dict[str, Any]) -> str:
     predictor_ok = all(p["status"] == "pass" for p in pred["predictors"].values())
 
     if passed_tests == total_tests and predictor_ok and integ["summary"]["alignment_rate"] >= 50:
-        verdict = "PASS - DevScore is functioning correctly"
+        verdict = "PASS - ProteinScore is functioning correctly"
     else:
         verdict = "NEEDS REVIEW - Some tests did not meet expectations"
 
@@ -546,7 +546,7 @@ def generate_report(all_results: dict[str, Any]) -> str:
 def main():
     """Run all benchmarks."""
     print("="*70)
-    print("DEVSCORE BENCHMARK SUITE")
+    print("PROTEINSCORE BENCHMARK SUITE")
     print(f"Started: {datetime.utcnow().isoformat()}Z")
     print("="*70)
 

@@ -1,12 +1,12 @@
-# DevScore Benchmark Suite
+# ProteinScore Benchmark Suite
 
-Validation suite for DevScore protein developability predictions against industry-standard datasets.
+Validation suite for ProteinScore protein developability predictions against industry-standard datasets.
 
 ## Quick Start
 
 ```bash
-# Install DevScore
-cd /path/to/DevScore
+# Install ProteinScore
+cd /path/to/ProteinScore
 pip install -e .
 
 # Download benchmark data
@@ -76,7 +76,7 @@ python benchmarks/download_flab.py
 
 ### Antibody Benchmarks (Jain 2017 / FLAb2)
 
-⚠️ **Note**: DevScore v0.1 is optimized for general proteins. Antibody-specific predictions require specialized models that account for CDR regions, framework stability, and VH/VL pairing.
+⚠️ **Note**: ProteinScore v0.1 is optimized for general proteins. Antibody-specific predictions require specialized models that account for CDR regions, framework stability, and VH/VL pairing.
 
 | Dataset | Category | Spearman ρ | Status |
 |---------|----------|------------|--------|
@@ -87,25 +87,25 @@ python benchmarks/download_flab.py
 
 ### Interpretation
 
-DevScore performs well on:
+ProteinScore performs well on:
 - **General proteins** - Positive correlations with experimental data
 - **Immunogenicity** - Strong AUC-ROC (0.821)
 - **Therapeutic proteins** - Correct risk stratification (Trastuzumab, Adalimumab)
 
-DevScore needs improvement for:
+ProteinScore needs improvement for:
 - **Antibody-specific properties** - Requires CDR analysis, pairing effects
 - **Aggregation hotspots** - Need sequence-specific APR detection
 
 ## Therapeutic Protein Validation
 
-| Protein | DevScore | Risk | Status |
+| Protein | ProteinScore | Risk | Status |
 |---------|----------|------|--------|
 | Trastuzumab VH | 66.9 | Medium | FDA-approved |
 | Adalimumab VH | 59.2 | Medium | FDA-approved |
 | Insulin B-chain | 65.0 | Medium | Known aggregation issues |
 | GLP-1 | 70.6 | Low | Requires modifications |
 
-## DevScore Interpretation Guide
+## ProteinScore Interpretation Guide
 
 | Score | Risk Level | Interpretation |
 |-------|------------|----------------|
@@ -146,8 +146,8 @@ Results are saved to `benchmarks/results/`:
 ## Citation
 
 ```bibtex
-@software{devscore2024,
-  title={DevScore: Integrated Protein Developability Prediction},
+@software{proteinscore2024,
+  title={ProteinScore: Integrated Protein Developability Prediction},
   author={RunLab},
   year={2024},
   url={https://runlab.bio}

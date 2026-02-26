@@ -18,7 +18,6 @@ from proteinscore.models import (
     ImmunogenicityResult,
     ProteinScoreResult,
     Recommendation,
-    RiskLevel,
     SolubilityResult,
     StabilityResult,
 )

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-DevScore Jain 2017 Benchmark
+ProteinScore Jain 2017 Benchmark
 
-Validates DevScore against the gold standard Jain et al. 2017 dataset
+Validates ProteinScore against the gold standard Jain et al. 2017 dataset
 of 137 clinical-stage antibodies with biophysical property measurements.
 
 Reference: Jain T et al. (2017). "Biophysical properties of the clinical-stage
@@ -194,11 +194,11 @@ def run_jain2017_benchmark(
     verbose: bool = True
 ) -> dict[str, Any]:
     """
-    Run Jain 2017 benchmark against DevScore predictions.
+    Run Jain 2017 benchmark against ProteinScore predictions.
 
-    Returns correlation metrics comparing DevScore to experimental measurements.
+    Returns correlation metrics comparing ProteinScore to experimental measurements.
     """
-    from devscore import DevScore
+    from proteinscore import ProteinScore
 
     # Load data
     antibodies = load_jain2017_data(data_dir)
@@ -217,8 +217,8 @@ def run_jain2017_benchmark(
         print("Reference: Jain et al. PNAS 2017")
         print()
 
-    # Initialize DevScore
-    scorer = DevScore(local_only=True)
+    # Initialize ProteinScore
+    scorer = ProteinScore(local_only=True)
 
     # Score each antibody
     results = {
@@ -248,7 +248,7 @@ def run_jain2017_benchmark(
                 results['expression']['predicted'].append(combined_score)
 
             # Collect aggregation correlation (AC-SINS)
-            # Note: Lower AC-SINS = better, Higher DevScore aggregation = better
+            # Note: Lower AC-SINS = better, Higher ProteinScore aggregation = better
             if ab.ac_sins is not None:
                 results['aggregation']['experimental'].append(-ab.ac_sins)  # Invert for correlation
                 results['aggregation']['predicted'].append(combined_agg)
@@ -326,7 +326,7 @@ def print_jain2017_report(results: dict[str, Any]) -> None:
     if avg_spearman > 0.4:
         print("   ✅ Strong correlation with experimental developability metrics")
     elif avg_spearman > 0.2:
-        print("   ✅ Moderate correlation - DevScore captures developability trends")
+        print("   ✅ Moderate correlation - ProteinScore captures developability trends")
     elif avg_spearman > 0:
         print("   ⚠️  Weak positive correlation")
     else:
@@ -344,7 +344,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="DevScore Jain 2017 Benchmark",
+        description="ProteinScore Jain 2017 Benchmark",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
