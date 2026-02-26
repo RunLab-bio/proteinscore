@@ -1,14 +1,14 @@
 # ProteinScore
 
-> **Unified Protein Developability Scorer**
+> **Unified Protein Developability Platform**
 >
-> Open-source library for scoring therapeutic protein developability
+> Open-source library for assessing therapeutic protein developability
 
 ---
 
 ## Overview
 
-ProteinScore is the **first open-source library** that unifies all protein developability metrics into a single actionable score. By integrating with RunLab's state-of-the-art immunogenicity predictor (RIP), it provides comprehensive assessment of therapeutic protein candidates.
+ProteinScore is the **first open-source platform** that unifies protein developability assessment into domain-specific modules. Each module provides comprehensive metrics for its protein class, with a unified scoring system (0-100).
 
 ### Why ProteinScore?
 
@@ -17,7 +17,46 @@ ProteinScore is the **first open-source library** that unifies all protein devel
 | **Fragmented Tools** | 6-8 separate tools for developability | Single unified interface |
 | **No Integration** | Manual data transfer between tools | Automated pipeline |
 | **Missing Immunogenicity** | Expensive commercial tools only | Free RIP API integration |
-| **No Standard Score** | Different scales, formats | 0-100 ProteinScore |
+| **No Standard Score** | Different scales, formats | 0-100 unified score |
+| **Domain-Specific Needs** | Generic tools for all proteins | Specialized modules per protein class |
+
+---
+
+## Platform Architecture
+
+```
+proteinscore/
+│
+├── predictors/                  # Shared base metrics
+│   ├── stability.py             # Thermostability (all modules)
+│   ├── solubility.py            # CamSol-like (all modules)
+│   ├── aggregation.py           # TANGO-like (all modules)
+│   └── immunogenicity.py        # RIP API (all modules)
+│
+├── antibody/                    # ✅ Available (v0.1)
+│   ├── scorer.py                # AntibodyScorer main class
+│   ├── tap_metrics.py           # TAP: PSH, PPC, PNC, SFvCSP
+│   ├── cdr.py                   # CDR detection & analysis
+│   ├── hydrophobicity.py        # HIC, AC-SINS prediction
+│   └── liabilities.py           # PTM, deamidation, oxidation
+│
+├── enzyme/                      # 🔜 Planned (v0.2)
+│   ├── scorer.py                # EnzymeScorer main class
+│   ├── thermostability.py       # Tm for process/storage
+│   └── expression.py            # Host expression prediction
+│
+└── peptide/                     # 🔜 Planned (v0.3)
+    ├── scorer.py                # PeptideScorer main class
+    ├── stability.py             # Proteolytic degradation
+    └── chemical_liability.py    # Oxidation, deamidation
+```
+
+### Design Principles
+
+- **Developability Focus**: All metrics assess manufacturability, not function/activity
+- **CPU-Only**: No GPU required, runs on any machine
+- **Modular**: Use only what you need
+- **Unified Scoring**: 0-100 scale across all modules
 
 ---
 
@@ -29,117 +68,139 @@ ProteinScore is the **first open-source library** that unifies all protein devel
 pip install proteinscore
 ```
 
-### Basic Usage
+### Antibody Analysis (Available Now)
 
 ```python
-from proteinscore import ProteinScore
+from proteinscore.antibody import AntibodyScorer
 
-# Initialize with free tier (100 requests/day)
-scorer = ProteinScore()
+scorer = AntibodyScorer()
 
-# Score a protein sequence
-result = scorer.score("MKTAYIAKQRQISFVKSHFSRQLE...")
+# Analyze antibody developability
+result = scorer.score(
+    vh_sequence="QVQLVQSGAEVKKPGAS...",
+    vl_sequence="DIQMTQSPSSLSASVGD..."
+)
 
-print(f"ProteinScore: {result.total_score}/100")
-print(f"Stability: {result.stability.score}")
-print(f"Solubility: {result.solubility.score}")
-print(f"Aggregation: {result.aggregation.score}")
-print(f"Immunogenicity: {result.immunogenicity.score}")
+print(f"Developability Score: {result.total_score}/100")
+print(f"Liabilities Found: {len(result.liabilities)}")
 ```
 
-### With API Key (Higher Limits)
+### Using Individual Components
 
 ```python
-from proteinscore import ProteinScore
+from proteinscore.antibody import (
+    CDRDetector,
+    TAPMetrics,
+    LiabilityScanner,
+    predict_self_association,
+)
+
+# CDR Detection
+cdr_detector = CDRDetector()
+cdr_regions = cdr_detector.detect_cdrs(vh_sequence, chain_type="heavy")
+
+# TAP Metrics
+tap = TAPMetrics()
+tap_result = tap.calculate(vh_sequence, vl_sequence)
+
+# Self-Association Prediction
+sa_result = predict_self_association(vh_sequence, vl_sequence)
+print(f"Self-Association Risk: {sa_result.risk_level}")
+```
+
+### Base Predictors (Any Protein)
+
+```python
+from proteinscore.predictors import (
+    StabilityPredictor,
+    SolubilityPredictor,
+    AggregationPredictor,
+)
+
+# Works with any protein sequence
+stability = StabilityPredictor().predict(sequence)
+solubility = SolubilityPredictor().predict(sequence)
+aggregation = AggregationPredictor().predict(sequence)
+```
+
+### With RIP API (Immunogenicity)
+
+```python
+from proteinscore.predictors import ImmunogenicityPredictor
 
 # Free tier: 1,000 requests/day
-scorer = ProteinScore(api_key="rl_abc123...")
-
-# Or set environment variable
-# export RUNLAB_API_KEY=rl_abc123...
-scorer = ProteinScore()
+predictor = ImmunogenicityPredictor(api_key="rl_abc123...")
+result = predictor.predict(sequence)
+print(f"Immunogenicity Risk: {result.risk_level}")
 ```
 
 ---
 
-## Scoring Components
+## Module Details
 
-### Architecture
+### Antibody Module (v0.1) ✅
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                  ProteinScore (MIT License)                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌───────────┐ │
-│  │ Stability   │ │ Solubility  │ │ Aggregation │ │ Immuno-   │ │
-│  │             │ │             │ │             │ │ genicity  │ │
-│  │ LOCAL       │ │ LOCAL       │ │ LOCAL       │ │ API CALL  │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └───────────┘ │
-│         │               │               │               │       │
-│         └───────────────┴───────────────┴───────────────┘       │
-│                                 │                               │
-│                    ┌────────────▼────────────┐                  │
-│                    │   Score Aggregator      │                  │
-│                    │   Weighted combination  │                  │
-│                    │   0-100 final score     │                  │
-│                    └─────────────────────────┘                  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   RunLab RIP API        │
-                    │   (Immunogenicity)      │
-                    └─────────────────────────┘
-```
+Comprehensive antibody developability assessment based on TAP (Therapeutic Antibody Profiler) and literature-validated metrics.
 
-### 1. Stability
+| Metric | Description | Reference |
+|--------|-------------|-----------|
+| **CDR Analysis** | Chothia/Kabat/IMGT numbering | Al-Lazikani 1997 |
+| **PSH** | Patches of Surface Hydrophobicity | Developability Index |
+| **PPC/PNC** | Positive/Negative Patches in CDRs | TAP metrics |
+| **SFvCSP** | CDR Structural Features | TAP metrics |
+| **HIC Prediction** | Hydrophobic Interaction Chromatography | Jain 2017 |
+| **AC-SINS** | Self-association prediction | Jain 2017 |
+| **Liabilities** | PTM sites, aggregation motifs | Literature |
 
-Predicts thermodynamic stability using energy calculations.
+### Enzyme Module (v0.2) 🔜
 
-| Score Range | Interpretation |
-|-------------|----------------|
-| 80-100 | Excellent stability |
-| 60-79 | Good stability |
-| 40-59 | Moderate stability |
-| 0-39 | Poor stability, redesign needed |
+CPU-only enzyme developability assessment.
 
-### 2. Solubility
+| Metric | Description | Expected Accuracy |
+|--------|-------------|-------------------|
+| **Thermostability** | Tm prediction for process/storage | r = 0.70-0.80 |
+| **Expression** | E. coli/CHO expression prediction | 60-74% accuracy |
+| **Aggregation** | Aggregation during production | Well-established |
+| **Solubility** | Formulation solubility | r² ≈ 0.5-0.6 |
 
-Predicts aqueous solubility from sequence features.
+### Peptide Module (v0.3) 🔜
 
-| Score Range | Interpretation |
-|-------------|----------------|
-| 80-100 | Highly soluble |
-| 60-79 | Soluble |
-| 40-59 | Moderate solubility |
-| 0-39 | Aggregation-prone |
+Peptide therapeutic developability.
 
-### 3. Aggregation
+| Metric | Description |
+|--------|-------------|
+| **Stability** | Proteolytic degradation susceptibility |
+| **Solubility** | Formulation compatibility |
+| **Aggregation** | Self-association propensity |
+| **Chemical Liability** | Oxidation, deamidation sites |
 
-Identifies aggregation-prone regions (APRs).
+### Base Predictors (Available Now) ✅
 
-| Score Range | Interpretation |
-|-------------|----------------|
-| 80-100 | Low aggregation risk |
-| 60-79 | Acceptable |
-| 40-59 | Some APRs detected |
-| 0-39 | High aggregation risk |
+Universal metrics applicable to any protein via `predictors/` module.
 
-### 4. Immunogenicity (RIP API)
-
-State-of-the-art MHC-I binding prediction.
-
-| Score Range | Interpretation |
-|-------------|----------------|
-| 80-100 | Low immunogenic risk |
-| 60-79 | Acceptable for most applications |
-| 40-59 | Consider deimmunization |
-| 0-39 | High immunogenic risk |
+| Metric | Description | Method |
+|--------|-------------|--------|
+| **Stability** | Thermostability estimation | Sequence features |
+| **Solubility** | Intrinsic solubility | CamSol-like |
+| **Aggregation** | APR detection | TANGO/Zyggregator-like |
+| **Immunogenicity** | MHC binding prediction | RIP API |
 
 ---
 
-## API Tiers
+## Scoring System
+
+All modules use a unified 0-100 scoring system:
+
+| Score Range | Interpretation | Action |
+|-------------|----------------|--------|
+| 80-100 | Excellent | Proceed to development |
+| 60-79 | Good | Minor optimization may help |
+| 40-59 | Moderate | Consider redesign |
+| 0-39 | Poor | Significant issues, redesign needed |
+
+---
+
+## API Tiers (for Immunogenicity via RIP)
 
 | Tier | Rate Limit | Features | Price |
 |------|------------|----------|-------|
@@ -152,56 +213,51 @@ State-of-the-art MHC-I binding prediction.
 
 ## Advanced Usage
 
-### Custom Weights
-
-```python
-from proteinscore import ProteinScore, ScoringWeights
-
-# Emphasize stability for enzyme design
-weights = ScoringWeights(
-    stability=0.4,
-    solubility=0.2,
-    aggregation=0.2,
-    immunogenicity=0.2
-)
-
-scorer = ProteinScore(weights=weights)
-```
-
-### Preset Weights
-
-```python
-from proteinscore import ScoringWeights
-
-# For enzyme design (emphasizes stability)
-weights = ScoringWeights.for_enzyme()
-
-# For antibody therapeutics (balanced)
-weights = ScoringWeights.for_antibody()
-
-# For vaccine antigens (emphasizes immunogenicity)
-weights = ScoringWeights.for_vaccine()
-```
-
 ### Batch Processing
 
 ```python
-sequences = ["MKTAY...", "MSKGE...", "MVLSG..."]
-names = ["Protein A", "Protein B", "Protein C"]
+from proteinscore.antibody import AntibodyScorer
 
-results = scorer.score_batch(sequences, names=names)
+scorer = AntibodyScorer()
 
-# Compare results
-comparison = scorer.compare(results)
-print(comparison)
+# Analyze multiple candidates
+candidates = [
+    {"vh": "QVQLVQ...", "vl": "DIQMTQ...", "name": "Ab-001"},
+    {"vh": "EVQLVE...", "vl": "EIVLTQ...", "name": "Ab-002"},
+]
+
+results = scorer.score_batch(candidates)
+
+# Rank by developability
+ranked = sorted(results, key=lambda r: r.total_score, reverse=True)
 ```
 
-### Local-Only Mode
+---
 
-```python
-# Skip API calls, use local estimation for immunogenicity
-scorer = ProteinScore(local_only=True)
-```
+## What is Developability?
+
+ProteinScore focuses exclusively on **developability** - the ability to manufacture and formulate a protein therapeutic successfully.
+
+| Developability (Our Focus) | NOT Our Focus |
+|----------------------------|---------------|
+| Will it express well? | What is its binding affinity? |
+| Will it aggregate? | What is the kcat? |
+| Is it stable in storage? | What substrate does it accept? |
+| Is it immunogenic? | What is the mechanism? |
+| Will it survive the process? | How efficient is it? |
+
+For function/activity prediction, see specialized tools for your domain.
+
+---
+
+## Roadmap
+
+| Version | Module | Status | Target |
+|---------|--------|--------|--------|
+| v0.1 | antibody/ | ✅ Available | - |
+| v0.2 | general/, enzyme/ | 🔜 Development | Q2 2026 |
+| v0.3 | peptide/ | 📋 Planned | Q3 2026 |
+| v1.0 | Full platform | 📋 Planned | Q4 2026 |
 
 ---
 
@@ -231,12 +287,25 @@ If you use ProteinScore in your research, please cite:
 
 ```bibtex
 @software{proteinscore2026,
-  title = {ProteinScore: Unified Protein Developability Scorer},
+  title = {ProteinScore: Unified Protein Developability Platform},
   author = {RunLab Team},
   year = {2026},
   url = {https://github.com/RunLab-bio/proteinscore}
 }
 ```
+
+---
+
+## References
+
+### Antibody Module
+- Raybould et al. (2019). TAP: Therapeutic Antibody Profiler. *Bioinformatics*
+- Jain et al. (2017). Developability of antibodies. *PNAS*
+- Chothia & Lesk (1987). Canonical structures for CDRs. *JMB*
+
+### General Methods
+- Sormanni et al. (2015). CamSol: Solubility prediction. *J Mol Biol*
+- Fernandez-Escamilla et al. (2004). TANGO: Aggregation prediction. *Nat Biotechnol*
 
 ---
 
@@ -253,4 +322,4 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ---
 
-*ProteinScore v0.1.0*
+*ProteinScore v0.1.0 - Antibody Module Available*
