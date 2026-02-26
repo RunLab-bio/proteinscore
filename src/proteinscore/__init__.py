@@ -44,7 +44,7 @@ from proteinscore.models import (
 )
 from proteinscore.scorer import ProteinScore
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     # Main class
     "ProteinScore",
