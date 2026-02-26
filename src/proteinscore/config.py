@@ -2,6 +2,7 @@
 ProteinScore Configuration
 
 Centralized configuration management with environment variable support.
+Follows Python Backend Best Practices (PBP) Section 1.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from proteinscore.models import ScoringWeights
@@ -22,13 +23,25 @@ class Config(BaseSettings):
     ProteinScore configuration with environment variable support.
 
     Environment variables are prefixed with PROTEINSCORE_ or RUNLAB_.
+    Includes production validation for critical settings.
     """
 
     model_config = SettingsConfigDict(
         env_prefix="PROTEINSCORE_",
         env_nested_delimiter="__",
+        env_file=".env",
+        env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    # Application
+    app_name: str = Field(default="proteinscore", description="Application name")
+    app_version: str = Field(default="0.1.0", description="Application version")
+    environment: Literal["development", "staging", "production"] = Field(
+        default="development",
+        description="Deployment environment",
+    )
+    debug: bool = Field(default=False, description="Enable debug mode")
 
     # API Configuration
     api_key: str | None = Field(
@@ -99,6 +112,10 @@ class Config(BaseSettings):
         description="Logging level",
     )
 
+    # Server Configuration (for API mode)
+    host: str = Field(default="0.0.0.0", description="Server host")
+    port: int = Field(default=8000, ge=1, le=65535, description="Server port")
+
     def model_post_init(self, __context: object) -> None:
         """Post-initialization: check for RUNLAB_API_KEY if api_key not set."""
         if self.api_key is None:
@@ -107,6 +124,19 @@ class Config(BaseSettings):
         # Ensure cache directory exists
         if self.cache_enabled:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> Config:
+        """Ensure required settings are present in production."""
+        if self.environment == "production":
+            errors = []
+            if self.debug:
+                errors.append("DEBUG must be False in production")
+            if self.log_level == "DEBUG":
+                errors.append("LOG_LEVEL should not be DEBUG in production")
+            if errors:
+                raise ValueError(f"Production configuration errors: {', '.join(errors)}")
+        return self
 
     @field_validator("hla_alleles", mode="before")
     @classmethod
@@ -129,6 +159,16 @@ class Config(BaseSettings):
         if not self.is_authenticated:
             return "anonymous"
         return "authenticated"
+
+    @property
+    def is_production(self) -> bool:
+        """Check if running in production."""
+        return self.environment == "production"
+
+    @property
+    def is_development(self) -> bool:
+        """Check if running in development."""
+        return self.environment == "development"
 
 
 class PredictorConfig(BaseModel):

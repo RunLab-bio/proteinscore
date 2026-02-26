@@ -40,15 +40,22 @@ proteinscore/
 │   ├── hydrophobicity.py        # HIC, AC-SINS prediction
 │   └── liabilities.py           # PTM, deamidation, oxidation
 │
-├── enzyme/                      # 🔜 Planned (v0.2)
+├── enzyme/                      # ✅ Available (v0.1)
 │   ├── scorer.py                # EnzymeScorer main class
 │   ├── thermostability.py       # Tm for process/storage
 │   └── expression.py            # Host expression prediction
 │
-└── peptide/                     # 🔜 Planned (v0.3)
-    ├── scorer.py                # PeptideScorer main class
-    ├── stability.py             # Proteolytic degradation
-    └── chemical_liability.py    # Oxidation, deamidation
+├── peptide/                     # ✅ Available (v0.2)
+│   ├── scorer.py                # PeptideScorer main class
+│   ├── stability.py             # Proteolytic degradation
+│   └── chemical_liability.py    # Oxidation, deamidation
+│
+├── middleware/                  # ✅ Available (v0.1)
+│   ├── error_handler.py         # FastAPI exception handlers
+│   └── request_context.py       # Request logging middleware
+│
+└── routers/                     # ✅ Available (v0.1)
+    └── health.py                # Health check endpoints
 ```
 
 ### Design Principles
@@ -57,6 +64,7 @@ proteinscore/
 - **CPU-Only**: No GPU required, runs on any machine
 - **Modular**: Use only what you need
 - **Unified Scoring**: 0-100 scale across all modules
+- **Production Ready**: Structured logging, error handling, health checks
 
 ---
 
@@ -152,9 +160,9 @@ Comprehensive antibody developability assessment based on TAP (Therapeutic Antib
 | **AC-SINS** | Self-association prediction | Jain 2017 |
 | **Liabilities** | PTM sites, aggregation motifs | Literature |
 
-### Enzyme Module (v0.2) 🔜
+### Enzyme Module (v0.1) ✅
 
-CPU-only enzyme developability assessment.
+CPU-only enzyme developability assessment with thermostability and expression prediction.
 
 | Metric | Description | Expected Accuracy |
 |--------|-------------|-------------------|
@@ -163,16 +171,45 @@ CPU-only enzyme developability assessment.
 | **Aggregation** | Aggregation during production | Well-established |
 | **Solubility** | Formulation solubility | r² ≈ 0.5-0.6 |
 
-### Peptide Module (v0.3) 🔜
+```python
+from proteinscore.enzyme import EnzymeScorer
 
-Peptide therapeutic developability.
+scorer = EnzymeScorer()
+result = scorer.score(sequence="MKTAYIAKQRQISFVK...")
 
-| Metric | Description |
-|--------|-------------|
-| **Stability** | Proteolytic degradation susceptibility |
-| **Solubility** | Formulation compatibility |
-| **Aggregation** | Self-association propensity |
-| **Chemical Liability** | Oxidation, deamidation sites |
+print(f"Enzyme Score: {result.total_score}/100")
+print(f"Predicted Tm: {result.thermostability.predicted_tm}°C")
+print(f"Expression Host: {result.expression.recommended_host}")
+```
+
+### Peptide Module (v0.2) ✅
+
+Comprehensive peptide therapeutic developability assessment with proteolytic and chemical stability prediction.
+
+| Metric | Description | Method |
+|--------|-------------|--------|
+| **Proteolytic Stability** | Protease cleavage sites, half-life | PROSPER/PeptideCutter rules |
+| **Chemical Liability** | Oxidation, deamidation, isomerization | Sequence motif analysis |
+| **Solubility** | Formulation compatibility | CamSol-like |
+| **Aggregation** | Self-association propensity | TANGO-like |
+
+```python
+from proteinscore.peptide import PeptideScorer
+
+scorer = PeptideScorer()
+result = scorer.score(sequence="HAEGTFTSDVSSYLEGQAAK")
+
+print(f"Peptide Score: {result.total_score}/100")
+print(f"Half-life: {result.estimated_half_life}")
+print(f"DPP-4 Susceptible: {result.is_dpp4_susceptible}")
+print(f"Chemical Liabilities: {result.chemical_liability.total_liabilities}")
+```
+
+**Key Features:**
+- **Protease Cleavage Analysis**: Trypsin, chymotrypsin, pepsin, DPP-4, and more
+- **Terminal Susceptibility**: N/C-terminal aminopeptidase/carboxypeptidase risk
+- **Chemical Modifications**: Met oxidation, Asn deamidation, Asp isomerization
+- **Stabilization Strategies**: Actionable recommendations for sequence optimization
 
 ### Base Predictors (Available Now) ✅
 
@@ -212,6 +249,36 @@ All modules use a unified 0-100 scoring system:
 ---
 
 ## Advanced Usage
+
+### Structured Logging
+
+```python
+from proteinscore import configure_logging, get_logger
+
+# Configure structured logging (JSON in production, colored in development)
+configure_logging()
+
+logger = get_logger(__name__)
+logger.info("scoring_started", sequence_length=150, method="stability")
+```
+
+### Exception Handling
+
+```python
+from proteinscore import (
+    InvalidSequenceError,
+    RateLimitError,
+    NotFoundError,
+)
+
+try:
+    result = scorer.score(sequence)
+except InvalidSequenceError as e:
+    print(f"Error {e.error_code}: {e.message}")
+    print(f"HTTP Status: {e.status_code}")  # 400
+except RateLimitError as e:
+    print(f"Retry after: {e.details['retry_after']}")
+```
 
 ### Batch Processing
 
@@ -254,9 +321,9 @@ For function/activity prediction, see specialized tools for your domain.
 
 | Version | Module | Status | Target |
 |---------|--------|--------|--------|
-| v0.1 | antibody/ | ✅ Available | - |
-| v0.2 | general/, enzyme/ | 🔜 Development | Q2 2026 |
-| v0.3 | peptide/ | 📋 Planned | Q3 2026 |
+| v0.1 | antibody/, enzyme/ | ✅ Available | - |
+| v0.2 | peptide/ | ✅ Available | - |
+| v0.3 | API server | 🔜 Development | Q3 2026 |
 | v1.0 | Full platform | 📋 Planned | Q4 2026 |
 
 ---
@@ -303,6 +370,19 @@ If you use ProteinScore in your research, please cite:
 - Jain et al. (2017). Developability of antibodies. *PNAS*
 - Chothia & Lesk (1987). Canonical structures for CDRs. *JMB*
 
+### Enzyme Module
+- Nature Scientific Reports (2025). Gradient Boosting Tm prediction
+- SoluProt (Bioinformatics 2021): Solubility/expression
+- SOLpro (Bioinformatics 2009): Expression prediction
+- ProTherm database: Thermostability validation
+
+### Peptide Module
+- Fosgerau & Hoffmann (2015). Peptide therapeutics: current status and future directions. *Drug Discov Today*
+- PROSPER (Bioinformatics 2012): Protease specificity prediction
+- PeptideCutter (ExPASy): Protease cleavage rules
+- Werle & Bernkop-Schnürch (2006): Strategies to improve plasma half life of peptide drugs
+- Manning et al. (2010). Stability of protein pharmaceuticals. *Pharm Res*
+
 ### General Methods
 - Sormanni et al. (2015). CamSol: Solubility prediction. *J Mol Biol*
 - Fernandez-Escamilla et al. (2004). TANGO: Aggregation prediction. *Nat Biotechnol*
@@ -322,4 +402,22 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ---
 
-*ProteinScore v0.1.0 - Antibody Module Available*
+## New in v0.2.0
+
+- **Peptide Module**: Full proteolytic and chemical stability prediction
+  - Protease cleavage site detection (trypsin, chymotrypsin, DPP-4, etc.)
+  - Chemical liability scanning (oxidation, deamidation, isomerization)
+  - Half-life estimation and stabilization strategies
+- **PeptideScorer**: Unified peptide developability scoring
+
+## New in v0.1.0
+
+- **Enzyme Module**: Full thermostability and expression prediction
+- **Structured Logging**: Structlog integration with JSON/console output
+- **Exception Hierarchy**: HTTP status codes for all exceptions
+- **FastAPI Middleware**: Error handlers and request context (optional)
+- **Health Endpoints**: Kubernetes-ready liveness/readiness probes
+
+---
+
+*ProteinScore v0.2.0 - Antibody, Enzyme & Peptide Modules Available*

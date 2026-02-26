@@ -13,16 +13,23 @@ Example:
     >>> print(f"ProteinScore: {result.total_score}/100")
 """
 
-from proteinscore.config import Config, ScoringWeights
+from proteinscore.config import Config, ScoringWeights, get_default_config
 from proteinscore.exceptions import (
     APIError,
     AuthenticationError,
+    CacheError,
+    ConfigurationError,
+    ConflictError,
     InvalidAlleleError,
     InvalidSequenceError,
+    NotFoundError,
+    PredictorError,
     ProteinScoreError,
     RateLimitError,
+    ServiceUnavailableError,
     ValidationError,
 )
+from proteinscore.logging import bind_context, clear_context, configure_logging, get_logger
 from proteinscore.models import (
     AggregationResult,
     Epitope,
@@ -44,6 +51,12 @@ __all__ = [
     # Configuration
     "Config",
     "ScoringWeights",
+    "get_default_config",
+    # Logging
+    "configure_logging",
+    "get_logger",
+    "bind_context",
+    "clear_context",
     # Result models
     "ProteinScoreResult",
     "StabilityResult",
@@ -63,4 +76,10 @@ __all__ = [
     "APIError",
     "AuthenticationError",
     "RateLimitError",
+    "PredictorError",
+    "ConfigurationError",
+    "CacheError",
+    "NotFoundError",
+    "ConflictError",
+    "ServiceUnavailableError",
 ]
