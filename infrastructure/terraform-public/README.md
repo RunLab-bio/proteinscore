@@ -1,6 +1,6 @@
-# DevScore Public API Infrastructure
+# ProteinScore Public API Infrastructure
 
-Terraform infrastructure for the DevScore Public API at `https://api-public.runlab.bio`.
+Terraform infrastructure for the ProteinScore Public API at `https://api-public.runlab.bio`.
 
 ## Architecture
 
@@ -60,7 +60,7 @@ When a user exceeds their rate limit, they receive a 429 response with:
     "runlab_full_stack": "https://runlab.bio",
     "benefits": [
       "Unlimited API access with Enterprise tier",
-      "Full DevScore analysis suite",
+      "Full ProteinScore analysis suite",
       "Custom HLA allele support",
       "Batch processing up to 10,000 peptides",
       "Priority support and SLAs"
@@ -167,7 +167,7 @@ Insert a new API key into DynamoDB:
 
 ```bash
 aws dynamodb put-item \
-  --table-name devscore-public-api-keys \
+  --table-name proteinscore-public-api-keys \
   --item '{
     "pk": {"S": "<sha256_hash_of_key>"},
     "tier": {"S": "free"},
@@ -182,9 +182,9 @@ aws dynamodb put-item \
 
 ### CloudWatch Dashboards
 
-- API Gateway access logs: `/aws/apigateway/devscore-public`
-- Lambda Authorizer: `/aws/lambda/devscore-public-authorizer`
-- Lambda Proxy: `/aws/lambda/devscore-public-proxy`
+- API Gateway access logs: `/aws/apigateway/proteinscore-public`
+- Lambda Authorizer: `/aws/lambda/proteinscore-public-authorizer`
+- Lambda Proxy: `/aws/lambda/proteinscore-public-proxy`
 
 ### Alarms to Consider
 

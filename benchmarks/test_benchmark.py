@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Quick Test for DevScore Benchmark Suite
+Quick Test for ProteinScore Benchmark Suite
 
 Tests that the benchmark infrastructure works correctly without
 requiring the full ProteinGym download.
@@ -12,14 +12,14 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from devscore import DevScore
+from proteinscore import ProteinScore
 
 
-def test_devscore_basic():
-    """Test basic DevScore functionality."""
-    print("Testing DevScore basic functionality...")
+def test_proteinscore_basic():
+    """Test basic ProteinScore functionality."""
+    print("Testing ProteinScore basic functionality...")
 
-    scorer = DevScore(local_only=True)
+    scorer = ProteinScore(local_only=True)
 
     # Test sequences with known characteristics
     test_cases = [
@@ -43,7 +43,7 @@ def test_batch_scoring():
     """Test batch scoring."""
     print("\nTesting batch scoring...")
 
-    scorer = DevScore(local_only=True)
+    scorer = ProteinScore(local_only=True)
 
     sequences = [
         "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQV",
@@ -66,7 +66,7 @@ def test_predictors():
     """Test individual predictors."""
     print("\nTesting individual predictors...")
 
-    from devscore.predictors import (
+    from proteinscore.predictors import (
         StabilityPredictor,
         SolubilityPredictor,
         AggregationPredictor,
@@ -125,11 +125,11 @@ def test_correlation_functions():
 def main():
     """Run all tests."""
     print("=" * 60)
-    print("DevScore Benchmark Quick Test")
+    print("ProteinScore Benchmark Quick Test")
     print("=" * 60)
 
     tests = [
-        test_devscore_basic,
+        test_proteinscore_basic,
         test_batch_scoring,
         test_predictors,
         test_correlation_functions,

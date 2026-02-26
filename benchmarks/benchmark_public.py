@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-DevScore Public Benchmark Suite
+ProteinScore Public Benchmark Suite
 
-Validates DevScore against established public datasets used as gold standards
+Validates ProteinScore against established public datasets used as gold standards
 in the computational biology and biopharmaceutical industry.
 
 Datasets:
@@ -52,8 +52,8 @@ from typing import Any
 # Add src to path for local testing
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from devscore import DevScore
-from devscore.predictors import (
+from proteinscore import ProteinScore
+from proteinscore.predictors import (
     AggregationPredictor,
     ImmunogenicityPredictor,
     SolubilityPredictor,
@@ -568,15 +568,15 @@ def run_stability_benchmark() -> dict[str, Any]:
 
 def run_integrated_benchmark() -> dict[str, Any]:
     """
-    Benchmark integrated DevScore on therapeutic protein dataset.
+    Benchmark integrated ProteinScore on therapeutic protein dataset.
 
     Uses well-characterized therapeutic proteins with known developability.
     """
     print("\n" + "="*60)
-    print("INTEGRATED DEVSCORE BENCHMARK")
+    print("INTEGRATED PROTEINSCORE BENCHMARK")
     print("="*60)
 
-    scorer = DevScore(local_only=True)
+    scorer = ProteinScore(local_only=True)
 
     # Therapeutic proteins with known developability profiles
     therapeutics = [
@@ -635,14 +635,14 @@ def generate_public_report(all_results: dict[str, Any]) -> str:
     """Generate publication-quality benchmark report."""
     lines = [
         "="*70,
-        "DEVSCORE PUBLIC BENCHMARK REPORT",
+        "PROTEINSCORE PUBLIC BENCHMARK REPORT",
         "Validation Against Industry-Standard Datasets",
         f"Generated: {datetime.utcnow().isoformat()}Z",
         "="*70,
         "",
         "METHODOLOGY",
         "-----------",
-        "DevScore was validated against curated benchmark datasets commonly",
+        "ProteinScore was validated against curated benchmark datasets commonly",
         "used in computational biology and biopharmaceutical development:",
         "",
         "1. IEDB (Immune Epitope Database) - MHC-peptide binding validation",
@@ -735,7 +735,7 @@ def generate_public_report(all_results: dict[str, Any]) -> str:
     integ = all_results.get("integrated", {})
     if integ.get("proteins"):
         lines.extend([
-            "INTEGRATED DEVSCORE",
+            "INTEGRATED PROTEINSCORE",
             "-------------------",
             f"Therapeutic proteins tested: {integ.get('total', 0)}",
             "",
@@ -751,7 +751,7 @@ def generate_public_report(all_results: dict[str, Any]) -> str:
         "SUMMARY",
         "=======",
         "",
-        "DevScore provides integrated protein developability assessment",
+        "ProteinScore provides integrated protein developability assessment",
         "validated against industry-standard benchmark datasets.",
         "",
         "Key findings:",
@@ -771,7 +771,7 @@ def generate_public_report(all_results: dict[str, Any]) -> str:
 def main():
     """Run all public benchmarks."""
     print("="*70)
-    print("DEVSCORE PUBLIC BENCHMARK SUITE")
+    print("PROTEINSCORE PUBLIC BENCHMARK SUITE")
     print("Industry-Standard Validation")
     print(f"Started: {datetime.utcnow().isoformat()}Z")
     print("="*70)

@@ -1,5 +1,5 @@
 """
-DevScore Public API - Lambda Authorizer
+ProteinScore Public API - Lambda Authorizer
 
 Validates API keys and enforces rate limits.
 When rate limit is exceeded, returns upgrade URL to runlab.bio.

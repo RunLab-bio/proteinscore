@@ -519,9 +519,9 @@ except APIError as e:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `RUNLAB_API_KEY` | RunLab API key | None (anonymous) |
-| `DEVSCORE_CACHE_DIR` | Cache directory | `~/.proteinscore/cache` |
-| `DEVSCORE_LOG_LEVEL` | Logging level | `INFO` |
-| `DEVSCORE_TIMEOUT` | API timeout (seconds) | `30` |
+| `PROTEINSCORE_CACHE_DIR` | Cache directory | `~/.proteinscore/cache` |
+| `PROTEINSCORE_LOG_LEVEL` | Logging level | `INFO` |
+| `PROTEINSCORE_TIMEOUT` | API timeout (seconds) | `30` |
 
 ---
 

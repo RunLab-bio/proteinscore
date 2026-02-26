@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-DevScore FLAb2 Benchmark
+ProteinScore FLAb2 Benchmark
 
-Validates DevScore against the FLAb2 (Fitness Landscape for Antibodies 2)
+Validates ProteinScore against the FLAb2 (Fitness Landscape for Antibodies 2)
 benchmark - the largest public therapeutic antibody design benchmark.
 
 Reference: Chungyoun M & Gray J. (2025). "FLAb2: Benchmarking Reveals That
@@ -270,7 +270,7 @@ def run_flab_benchmark(
     """
     Run FLAb2 benchmark across multiple datasets.
     """
-    from devscore import DevScore
+    from proteinscore import ProteinScore
 
     flab_dir = data_dir / "flab"
 
@@ -284,8 +284,8 @@ def run_flab_benchmark(
         print("Reference: Chungyoun & Gray, bioRxiv 2025")
         print()
 
-    # Initialize DevScore
-    scorer = DevScore(local_only=True)
+    # Initialize ProteinScore
+    scorer = ProteinScore(local_only=True)
 
     results = []
     categories_to_run = categories or list(FLAB_DATASETS.keys())
@@ -431,7 +431,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="DevScore FLAb2 Benchmark"
+        description="ProteinScore FLAb2 Benchmark"
     )
 
     parser.add_argument(

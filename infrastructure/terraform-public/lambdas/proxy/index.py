@@ -1,5 +1,5 @@
 """
-DevScore Public API - Lambda Proxy
+ProteinScore Public API - Lambda Proxy
 
 Forwards validated requests to the internal RIP API.
 Adds rate limit headers and handles upgrade redirects.
@@ -99,7 +99,7 @@ def build_upgrade_response(context: dict[str, Any]) -> dict[str, Any]:
             "runlab_full_stack": "https://runlab.bio",
             "benefits": [
                 "Unlimited API access with Enterprise tier",
-                "Full DevScore analysis suite",
+                "Full ProteinScore analysis suite",
                 "Custom HLA allele support",
                 "Batch processing up to 10,000 peptides",
                 "Priority support and SLAs",
