@@ -109,3 +109,4 @@ benchmarks/results/
 *.key
 credentials.json
 secrets.json
+infrastructure/
