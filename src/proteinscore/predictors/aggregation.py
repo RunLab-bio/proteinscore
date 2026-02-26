@@ -45,6 +45,32 @@ AMYLOID_SCALE = {
 # Gatekeeper residues that can disrupt aggregation
 GATEKEEPERS = {"R", "K", "D", "E", "P", "G"}
 
+# Waltz-derived amyloid hexapeptide patterns (from amyloid database)
+# These are known amyloid-forming sequence motifs
+WALTZ_AMYLOID_PATTERNS = [
+    # Strongly amyloidogenic patterns (position-specific)
+    "VQIVYK",  # Tau aggregation core
+    "NFGAIL",  # hIAPP (islet amyloid)
+    "KLVFFA",  # Abeta(16-21)
+    "NNQQNY",  # Sup35
+    "GNNQQN",  # Sup35/yeast prion
+    "NYLGQI",  # Lysozyme
+    "SSTSAA",  # PrP
+    "AGAAAA",  # Polyalanine
+    "VEALYL",  # Insulin B chain
+    "LVEALYL", # Insulin extended
+]
+
+# Position-specific amyloid propensity (Waltz algorithm)
+# For hexapeptide windows, relative importance of each position
+WALTZ_POSITION_WEIGHTS = [0.8, 1.0, 1.2, 1.2, 1.0, 0.8]
+
+# Strong beta-sheet formers (high aggregation potential)
+BETA_FORMERS = {"V", "I", "L", "F", "Y", "W", "T", "Q", "N"}
+
+# Beta-breakers (reduce aggregation)
+BETA_BREAKERS = {"P", "G", "D", "E", "K", "R"}
+
 
 class AggregationPredictor(BasePredictor[AggregationResult]):
     """
@@ -75,8 +101,11 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
         """
         Predict aggregation propensity for a protein sequence.
 
-        Uses a combination of TANGO beta-aggregation and A3D
-        hot-spot detection algorithms.
+        Uses a combination of:
+        - TANGO beta-aggregation algorithm
+        - A3D hot-spot detection
+        - Waltz amyloid pattern matching
+        - Beta-sheet former/breaker analysis
 
         Args:
             sequence: Protein sequence (validated)
@@ -94,8 +123,14 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
         # Identify aggregation-prone regions
         aprs = self._identify_aprs(sequence, tango_profile, a3d_profile)
 
-        # Calculate amyloid propensity
-        amyloid_propensity = self._calculate_amyloid_propensity(sequence)
+        # Calculate amyloid propensity (enhanced with Waltz patterns)
+        amyloid_propensity = self._calculate_amyloid_propensity_v2(sequence)
+
+        # Calculate Waltz pattern matches
+        waltz_penalty = self._calculate_waltz_penalty(sequence)
+
+        # Calculate beta-sheet former/breaker balance
+        beta_balance_score = self._calculate_beta_balance(sequence)
 
         # Calculate gatekeeper protection score
         gatekeeper_score = self._calculate_gatekeeper_protection(sequence, aprs)
@@ -117,8 +152,15 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
         # Penalize for high amyloid propensity
         amyloid_penalty = amyloid_propensity * 20
 
-        # Add gatekeeper bonus
-        final_score = base_score - apr_penalty - amyloid_penalty + gatekeeper_score
+        # Add gatekeeper bonus and beta balance
+        final_score = (
+            base_score -
+            apr_penalty -
+            amyloid_penalty -
+            waltz_penalty +
+            gatekeeper_score +
+            beta_balance_score
+        )
 
         # Clamp to valid range
         final_score = max(0, min(100, final_score))
@@ -242,7 +284,18 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
         return aprs[:10]  # Return top 10 APRs
 
     def _calculate_amyloid_propensity(self, sequence: str) -> float:
-        """Calculate overall amyloid-forming propensity."""
+        """Calculate overall amyloid-forming propensity (legacy)."""
+        return self._calculate_amyloid_propensity_v2(sequence)
+
+    def _calculate_amyloid_propensity_v2(self, sequence: str) -> float:
+        """
+        Enhanced amyloid propensity calculation.
+
+        Combines:
+        - Amino acid scale-based scoring
+        - Position-weighted hexapeptide analysis (Waltz-inspired)
+        - Known amyloid pattern detection
+        """
         window = 6
         threshold = 0.25
 
@@ -250,22 +303,98 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
             avg = sum(AMYLOID_SCALE.get(aa, 0.0) for aa in sequence) / len(sequence)
             return max(0, min(1, (avg + 0.3) / 0.6))
 
-        # Scan for amyloid-forming hexapeptides
+        # Scan for amyloid-forming hexapeptides with position weighting
         amyloid_scores = []
+        pattern_matches = 0
+
         for i in range(len(sequence) - window + 1):
             window_seq = sequence[i:i + window]
-            score = sum(AMYLOID_SCALE.get(aa, 0.0) for aa in window_seq) / window
-            if score > threshold:
-                amyloid_scores.append(score)
 
-        if not amyloid_scores:
+            # Position-weighted score (Waltz-inspired)
+            weighted_score = 0.0
+            for j, aa in enumerate(window_seq):
+                weighted_score += AMYLOID_SCALE.get(aa, 0.0) * WALTZ_POSITION_WEIGHTS[j]
+            weighted_score /= sum(WALTZ_POSITION_WEIGHTS)
+
+            if weighted_score > threshold:
+                amyloid_scores.append(weighted_score)
+
+            # Check for known amyloid patterns
+            if window_seq in WALTZ_AMYLOID_PATTERNS:
+                pattern_matches += 1
+
+        if not amyloid_scores and pattern_matches == 0:
             return 0.0
 
-        # Overall propensity is based on number and intensity of amyloid windows
+        # Calculate base propensity from scores
         count_factor = len(amyloid_scores) / (len(sequence) - window + 1)
-        intensity_factor = max(amyloid_scores)
+        intensity_factor = max(amyloid_scores) if amyloid_scores else 0
 
-        return max(0, min(1, count_factor * 0.5 + intensity_factor * 1.5))
+        base_propensity = count_factor * 0.4 + intensity_factor * 1.2
+
+        # Add penalty for known pattern matches
+        pattern_penalty = min(0.3, pattern_matches * 0.15)
+
+        return max(0, min(1, base_propensity + pattern_penalty))
+
+    def _calculate_waltz_penalty(self, sequence: str) -> float:
+        """
+        Calculate penalty for Waltz amyloid patterns.
+
+        Returns penalty score (0-10) based on presence of known
+        amyloidogenic sequence motifs.
+        """
+        if len(sequence) < 6:
+            return 0.0
+
+        penalty = 0.0
+
+        # Check for known amyloid patterns
+        for pattern in WALTZ_AMYLOID_PATTERNS:
+            if pattern in sequence:
+                penalty += 3.0  # Significant penalty for exact match
+
+        # Check for partial matches (4 out of 6 consecutive matches)
+        for pattern in WALTZ_AMYLOID_PATTERNS:
+            for i in range(len(sequence) - 5):
+                window = sequence[i:i + 6]
+                matches = sum(1 for a, b in zip(window, pattern) if a == b)
+                if matches >= 4 and window != pattern:  # Partial but not exact
+                    penalty += 1.0
+
+        return min(10.0, penalty)
+
+    def _calculate_beta_balance(self, sequence: str) -> float:
+        """
+        Calculate score based on beta-former vs beta-breaker balance.
+
+        A good balance of beta-breakers can prevent aggregation.
+        """
+        if not sequence:
+            return 0.0
+
+        former_count = sum(1 for aa in sequence if aa in BETA_FORMERS)
+        breaker_count = sum(1 for aa in sequence if aa in BETA_BREAKERS)
+
+        former_fraction = former_count / len(sequence)
+        breaker_fraction = breaker_count / len(sequence)
+
+        # Ideal: beta-breakers > 15% and formers < 50%
+        score = 0.0
+
+        if breaker_fraction >= 0.20:
+            score += 3.0  # Good protection
+        elif breaker_fraction >= 0.15:
+            score += 1.5
+        elif breaker_fraction < 0.10:
+            score -= 1.0  # Few breakers is concerning
+
+        if former_fraction < 0.40:
+            score += 1.5  # Low former content is good
+        elif former_fraction > 0.55:
+            score -= 2.0  # High former content is risky
+
+        return score
 
     def _calculate_gatekeeper_protection(
         self,
