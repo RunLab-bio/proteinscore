@@ -321,3 +321,108 @@ def estimate_expression_difficulty(properties: dict[str, float]) -> float:
         score += 15  # High aromatic content can cause aggregation
 
     return min(score, 100)
+
+
+def validate_structure(
+    structure: str,
+    *,
+    require_complete: bool = False,
+) -> str:
+    """
+    Validate a PDB structure string.
+
+    Args:
+        structure: PDB format structure string
+        require_complete: If True, require ATOM records
+
+    Returns:
+        Normalized structure string
+
+    Raises:
+        ValueError: If structure is invalid
+    """
+    if not structure:
+        raise ValueError("Structure cannot be empty")
+
+    # Basic validation: should have ATOM or HETATM records
+    lines = structure.strip().split("\n")
+    has_atoms = any(
+        line.startswith(("ATOM", "HETATM"))
+        for line in lines
+    )
+
+    if require_complete and not has_atoms:
+        raise ValueError("Structure must contain ATOM or HETATM records")
+
+    return structure.strip()
+
+
+def detect_protein_type(sequence: str) -> str:
+    """
+    Detect the likely protein type from sequence features.
+
+    Returns one of: 'antibody', 'enzyme', 'peptide', 'general'
+    """
+    length = len(sequence)
+
+    # Peptides: < 50 amino acids
+    if length < 50:
+        return "peptide"
+
+    # Antibody detection: look for conserved motifs
+    antibody_vh_motifs = ["CXXW", "WVRQ", "WFRQ", "YYCAR", "WGXG"]
+    antibody_vl_motifs = ["CXXY", "WYQQ", "WFQQ", "FGXG"]
+
+    # Check for immunoglobulin-like patterns
+    has_vh_like = any(
+        _motif_match(sequence, motif)
+        for motif in antibody_vh_motifs
+    )
+    has_vl_like = any(
+        _motif_match(sequence, motif)
+        for motif in antibody_vl_motifs
+    )
+
+    if has_vh_like or has_vl_like:
+        return "antibody"
+
+    # Enzyme detection: look for catalytic motifs
+    catalytic_motifs = [
+        "HExxH",   # Metalloprotease
+        "SxHxxE", # Serine protease
+        "GxSxG",   # Lipase/esterase
+        "GxGxxG",  # Rossmann fold (NAD binding)
+        "DxDxT",   # Kinase
+    ]
+
+    has_catalytic = any(
+        _motif_match(sequence, motif)
+        for motif in catalytic_motifs
+    )
+
+    if has_catalytic:
+        return "enzyme"
+
+    return "general"
+
+
+def _motif_match(sequence: str, motif: str) -> bool:
+    """
+    Check if a motif matches anywhere in the sequence.
+
+    'x' or 'X' matches any amino acid.
+    """
+    motif = motif.upper()
+    seq = sequence.upper()
+
+    for i in range(len(seq) - len(motif) + 1):
+        window = seq[i:i + len(motif)]
+        match = True
+        for m, s in zip(motif, window):
+            if m != "X" and m != s:
+                match = False
+                break
+        if match:
+            return True
+
+    return False
