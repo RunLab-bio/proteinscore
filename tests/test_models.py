@@ -42,23 +42,23 @@ class TestSolubilityClass:
     """Tests for SolubilityClass enum."""
 
     def test_from_score_high(self) -> None:
-        """Test high solubility classification."""
-        assert SolubilityClass.from_score(80) == SolubilityClass.HIGH
+        """Test high solubility classification (score >= 70)."""
+        assert SolubilityClass.from_score(70) == SolubilityClass.HIGH
         assert SolubilityClass.from_score(100) == SolubilityClass.HIGH
 
     def test_from_score_medium(self) -> None:
-        """Test medium solubility classification."""
-        assert SolubilityClass.from_score(60) == SolubilityClass.MEDIUM
-        assert SolubilityClass.from_score(79) == SolubilityClass.MEDIUM
+        """Test medium solubility classification (score 52-70)."""
+        assert SolubilityClass.from_score(52) == SolubilityClass.MEDIUM
+        assert SolubilityClass.from_score(69) == SolubilityClass.MEDIUM
 
     def test_from_score_low(self) -> None:
-        """Test low solubility classification."""
-        assert SolubilityClass.from_score(40) == SolubilityClass.LOW
-        assert SolubilityClass.from_score(59) == SolubilityClass.LOW
+        """Test low solubility classification (score 35-52)."""
+        assert SolubilityClass.from_score(35) == SolubilityClass.LOW
+        assert SolubilityClass.from_score(51) == SolubilityClass.LOW
 
     def test_from_score_aggregation_prone(self) -> None:
-        """Test aggregation-prone classification."""
-        assert SolubilityClass.from_score(39) == SolubilityClass.AGGREGATION_PRONE
+        """Test aggregation-prone classification (score < 35)."""
+        assert SolubilityClass.from_score(34) == SolubilityClass.AGGREGATION_PRONE
         assert SolubilityClass.from_score(0) == SolubilityClass.AGGREGATION_PRONE
 
 

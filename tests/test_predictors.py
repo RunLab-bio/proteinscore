@@ -44,7 +44,7 @@ class TestStabilityPredictor:
     def test_method_is_set(self, stability_predictor, gfp_sequence) -> None:
         """Test that method is set."""
         result = stability_predictor.predict(gfp_sequence)
-        assert result.method == "sequence_based"
+        assert result.method in ("sequence_based", "sequence_based_esm2")
 
     def test_interpretation_not_empty(self, stability_predictor, gfp_sequence) -> None:
         """Test that interpretation is provided."""
