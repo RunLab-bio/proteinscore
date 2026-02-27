@@ -173,6 +173,7 @@ Comprehensive antibody developability assessment based on TAP (Therapeutic Antib
 | **Expression** | HEK titer prediction | ρ = 0.32*** | ML-optimized |
 | **Self-Association** | AC-SINS prediction | ρ = 0.47*** | ML-optimized |
 | **Cross-Interaction** | CSI-BLI prediction | ρ = 0.34*** | ML-optimized |
+| **HIC Retention** | Hydrophobicity ranking | ρ = 0.55*** | GBM-optimized |
 | **Liabilities** | PTM sites, aggregation motifs | - | Literature |
 
 *\*\*\* p < 0.001*
@@ -427,6 +428,11 @@ If you use ProteinScore in your research, please cite:
 - [ESMStabP](https://pmc.ncbi.nlm.nih.gov/articles/PMC11870573/): ESM2-based thermostability prediction (GPU)
 - [TAP Web Server](https://opig.stats.ox.ac.uk/webapps/sabdab-sabpred/sabpred/tap): Structure-based antibody profiling
 
+### HIC Prediction Methods
+- [PROPERMAB](https://github.com/regeneron-mpds/propermab): Protein Property Prediction for Monoclonal Antibodies (ρ = 0.75 with 3D structure)
+- [DeepSP](https://github.com/Lailabcode/DeepSP): Deep learning for SAP/SCM prediction from sequence (CNN-based)
+- Jain et al. (2017). Biophysical properties of the clinical-stage antibody landscape. *PNAS*
+
 ---
 
 ## Contributing
@@ -460,6 +466,36 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 | **Expression (HEK)** | 0.32 | 0.0001*** | ~0.30 |
 | **Self-Association (AC-SINS)** | 0.47 | <0.0001*** | ~0.40-0.50 |
 | **Cross-Interaction (CSI-BLI)** | 0.34 | <0.0001*** | - |
+| **HIC Retention** | 0.55 | <0.0001*** | PROPERMAB: 0.75 |
+
+### HIC Retention Benchmark (Detailed)
+
+Comprehensive evaluation of HIC (Hydrophobic Interaction Chromatography) retention time prediction methods:
+
+| Approach | Spearman ρ | Method | Notes |
+|----------|------------|--------|-------|
+| **GBM + Handcrafted** | 0.553 ± 0.046 | Gradient Boosting | **Best sequence-only** |
+| **Ensemble Weighted** | 0.461 | Model averaging | 3-model ensemble |
+| **GBM Basic** | 0.444 ± 0.107 | 20 basic features | Baseline |
+| **ESM-2 150M + Ridge** | 0.429 ± 0.183 | Embeddings | High variance |
+| **ESM-2 150M + RF** | 0.413 ± 0.247 | Embeddings | Very high variance |
+| **DeepSP (SAP/SCM)** | 0.191 ± 0.069 | CNN-based | No improvement |
+| **TAP Baseline** | 0.351 | TAP PSH metric | Original baseline |
+
+**Key Findings:**
+- **Best achievable (sequence-only)**: ρ = 0.553 with GBM + handcrafted features
+- **Improvement over baseline**: +57% vs TAP PSH (0.351)
+- **Gap to SOTA**: PROPERMAB achieves ρ = 0.75 using 3D structure + MD simulation
+- **DeepSP evaluation**: CNN-based SAP/SCM approximation did not improve results
+- **ESM-2 embeddings**: High variance across folds, not consistently better than handcrafted
+
+**Handcrafted Features (59 features):**
+- Physicochemical: hydrophobicity scales, charge, molecular weight
+- Regional: CDR-specific vs framework properties
+- Surface: solvent accessibility approximations
+- Aggregation: APR detection, hydrophobic patches
+
+> **Note**: To reach PROPERMAB-level performance (ρ = 0.75), actual 3D structure prediction (ESMFold/AlphaFold) with real SAP calculation from MD simulation would be required. Sequence-only methods have fundamental limitations for predicting 3D surface properties.
 
 ### Peptide Module
 
@@ -470,6 +506,17 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 | **Modification Factors** | 100% accuracy | Lipidation/PEG/Fc |
 
 ---
+
+## New in v0.2.1
+
+- **HIC Retention Benchmark**: Comprehensive evaluation of hydrophobicity prediction methods
+  - Best sequence-only performance: ρ = 0.553 (GBM + handcrafted features)
+  - +57% improvement over TAP baseline (0.351)
+  - DeepSP (SAP/SCM) evaluation: CNN-based approach did not improve results
+  - ESM-2 embeddings: High variance, not consistently better than handcrafted
+  - Gap analysis: PROPERMAB (0.75) requires 3D structure + MD simulation
+- **DeepSP PyTorch Port**: Keras model converted to PyTorch (no TensorFlow dependency)
+- **ANARCI Integration**: Antibody numbering via anarcii for sequence alignment
 
 ## New in v0.2.0
 
@@ -494,4 +541,4 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ---
 
-*ProteinScore v0.2.0 - Antibody, Enzyme & Peptide Modules with ML-Optimized Scoring*
+*ProteinScore v0.2.1 - HIC Benchmark + Antibody, Enzyme & Peptide Modules with ML-Optimized Scoring*
