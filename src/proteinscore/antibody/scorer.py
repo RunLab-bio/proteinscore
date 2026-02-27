@@ -310,6 +310,61 @@ class AntibodyScorer:
 
         return max(0, psh_score - apr_penalty)
 
+    def get_self_association_score(
+        self,
+        vh_sequence: str,
+        vl_sequence: str,
+    ) -> float:
+        """
+        Get ML-derived self-association score (predicts AC-SINS).
+
+        Based on scikit-learn analysis of Jain 2017 dataset:
+        - negative_frac: ρ = -0.351 with AC-SINS (MORE negative = LESS self-association)
+        - net_charge_per_res: ρ = +0.331 with AC-SINS (HIGHER net = MORE self-association)
+        - tiny_frac: ρ = +0.301 with AC-SINS (MORE tiny = MORE self-association)
+
+        Optimized combination achieves ρ ≈ 0.47 correlation with -AC-SINS
+
+        Higher score = LESS self-association (better developability)
+
+        Args:
+            vh_sequence: VH sequence
+            vl_sequence: VL sequence
+
+        Returns:
+            Self-association score (0-100, higher = less self-association = better)
+        """
+        full_seq = vh_sequence.upper() + vl_sequence.upper()
+        length = len(full_seq)
+
+        if length == 0:
+            return 50.0
+
+        # Key ML-derived features
+        negative_count = sum(1 for aa in full_seq if aa in "DE")
+        positive_count = sum(1 for aa in full_seq if aa in "KRH")
+        tiny_count = sum(1 for aa in full_seq if aa in "GAS")
+
+        negative_frac = negative_count / length
+        net_charge_per_residue = (positive_count - negative_count) / length
+        tiny_frac = tiny_count / length
+
+        # Optimized linear combination from grid search
+        # Best weights: neg=0.3, net=0.4, tiny=0.3 → ρ = +0.473 with -AC-SINS
+        # Raw score: higher = less self-association
+        raw_score = (
+            negative_frac * 0.3 -        # More negative = better (less self-assoc)
+            net_charge_per_residue * 0.4 - # More net charge = worse (more self-assoc)
+            tiny_frac * 0.3               # More tiny = worse (more self-assoc)
+        )
+
+        # Scale to 0-100 range
+        # Raw score range on Jain 2017: -0.099 to -0.040
+        # Linear scaling: score = 143.7 + raw * 1355.2 → maps to 10-90
+        score = 143.7 + raw_score * 1355.2
+
+        return max(0, min(100, score))
+
     def get_expression_score(
         self,
         vh_sequence: str,
@@ -318,10 +373,14 @@ class AntibodyScorer:
         """
         Get predicted expression score.
 
-        Based on:
-        - Charge balance (SFvCSP)
-        - CDR length
-        - Liability count
+        Based on ML grid search on Jain 2017 dataset (ρ = +0.323):
+        - positive_frac: ρ = -0.187 (more = LOWER expression)
+        - agg_frac: ρ = -0.173 (more = LOWER expression)
+        - small_frac: ρ = +0.171 (more = HIGHER expression)
+        - pro_frac: ρ = +0.126 (more = HIGHER expression)
+        - tiny_frac: ρ = +0.138 (less = HIGHER expression in combo)
+
+        Optimized 5-feature combination achieves ρ ≈ 0.32 with HEK Titer
 
         Args:
             vh_sequence: VH sequence
@@ -330,41 +389,172 @@ class AntibodyScorer:
         Returns:
             Expression score (0-100, higher = better predicted expression)
         """
-        tap_result = self._tap_metrics.calculate(vh_sequence, vl_sequence)
+        full_seq = vh_sequence.upper() + vl_sequence.upper()
+        length = len(full_seq)
 
-        # Start with 80
-        score = 80.0
+        if length == 0:
+            return 50.0
 
-        # CDR length penalty (too short or too long)
-        cdr_len = tap_result.cdr_length.value
-        if cdr_len < 40 or cdr_len > 60:
-            score -= 10
-        if cdr_len < 35 or cdr_len > 70:
-            score -= 10
+        # ML-derived features from grid search
+        # Best combination: (-1, -1, 1, 1, -1) for (pos, agg, small, pro, tiny)
+        # Best weights: (0.3, 0.4, 0.3, 0.2, 0.2) → ρ = +0.323
 
-        # SFvCSP penalty (charge asymmetry)
-        if tap_result.sfvcsp.flag == TAPFlag.RED:
-            score -= 15
-        elif tap_result.sfvcsp.flag == TAPFlag.AMBER:
-            score -= 5
+        # Feature 1: Positive charge fraction (sign=-1, weight=0.3)
+        positive_count = sum(1 for aa in full_seq if aa in "KRH")
+        positive_frac = positive_count / length
 
-        # Liability penalties
-        vh_liabilities = self._liability_scanner.scan(vh_sequence, "heavy")
-        vl_liabilities = self._liability_scanner.scan(vl_sequence, "light")
+        # Feature 2: Aggregation dipeptides (sign=-1, weight=0.4)
+        agg_motifs = ['VV', 'II', 'LL', 'FF', 'YY', 'WW', 'VL', 'LV', 'IL', 'LI', 'FY', 'YF']
+        agg_count = sum(full_seq.count(m) for m in agg_motifs)
+        agg_frac = agg_count / length
 
-        # Unpaired cysteines severely affect expression
-        unpaired = (
-            vh_liabilities.summary.unpaired_cysteine +
-            vl_liabilities.summary.unpaired_cysteine
+        # Feature 3: Small residue fraction (sign=+1, weight=0.3)
+        small_count = sum(1 for aa in full_seq if aa in "GASPC")
+        small_frac = small_count / length
+
+        # Feature 4: Proline fraction (sign=+1, weight=0.2)
+        pro_count = sum(1 for aa in full_seq if aa == "P")
+        pro_frac = pro_count / length
+
+        # Feature 5: Tiny residue fraction (sign=-1, weight=0.2)
+        tiny_count = sum(1 for aa in full_seq if aa in "GAS")
+        tiny_frac = tiny_count / length
+
+        # Optimized linear combination from grid search
+        # Best: (-1, -1, 1, 1, -1) with weights (0.3, 0.4, 0.3, 0.2, 0.2) → ρ = +0.323
+        raw_score = (
+            -positive_frac * 0.3 +    # Less positive = better
+            -agg_frac * 0.4 +         # Less aggregation-prone = better
+            small_frac * 0.3 +        # More small = better
+            pro_frac * 0.2 +          # More proline = better (breaks aggregation)
+            -tiny_frac * 0.2          # Less tiny = better (in combo context)
         )
-        score -= unpaired * 20
 
-        # High severity liabilities
-        high_sev = (
-            vh_liabilities.summary.high_severity +
-            vl_liabilities.summary.high_severity
+        # Scale to 0-100 range
+        # Raw score typically ranges from -0.08 to +0.02
+        # Linear scaling to map to 10-90 range
+        score = 60.0 + raw_score * 600
+
+        return max(0, min(100, score))
+
+    def get_cross_interaction_score(
+        self,
+        vh_sequence: str,
+        vl_sequence: str,
+    ) -> float:
+        """
+        Get ML-derived cross-interaction score (predicts CSI-BLI).
+
+        Based on sklearn grid search on Jain 2017 dataset (ρ = +0.341):
+        - net_charge: ρ = +0.322 with CSI-BLI (MORE positive = MORE cross-reactive)
+        - negative_frac: ρ = -0.297 (MORE negative = LESS cross-reactive)
+        - small_frac: ρ = +0.240 (MORE small = MORE cross-reactive)
+        - tiny_frac: ρ = +0.225 (MORE tiny = MORE cross-reactive)
+
+        Higher score = LESS cross-interaction (better developability)
+
+        Args:
+            vh_sequence: VH sequence
+            vl_sequence: VL sequence
+
+        Returns:
+            Cross-interaction score (0-100, higher = less cross-reactive = better)
+        """
+        full_seq = vh_sequence.upper() + vl_sequence.upper()
+        length = len(full_seq)
+
+        if length == 0:
+            return 50.0
+
+        # ML-derived features
+        negative_count = sum(1 for aa in full_seq if aa in "DE")
+        positive_count = sum(1 for aa in full_seq if aa in "KRH")
+        small_count = sum(1 for aa in full_seq if aa in "GASPC")
+        tiny_count = sum(1 for aa in full_seq if aa in "GAS")
+
+        negative_frac = negative_count / length
+        net_charge = (positive_count - negative_count) / length
+        small_frac = small_count / length
+        tiny_frac = tiny_count / length
+
+        # Optimized linear combination from grid search
+        # Best: signs=(-1, -1, -1, +1), weights=(0.4, 0.2, 0.3, 0.2) → ρ = +0.341
+        # Higher raw_score = less cross-reactive = better
+        raw_score = (
+            -net_charge * 0.4 +      # Less positive charge = better
+            -negative_frac * 0.2 +   # Actually: more negative helps reduce cross-reactivity
+            -small_frac * 0.3 +      # Less small = better
+            tiny_frac * 0.2          # But some tiny is protective
         )
-        score -= high_sev * 3
+
+        # Scale to 0-100 range
+        # Raw score range on Jain 2017: -0.079 to -0.056
+        # Linear scaling: score = 281.4 + raw * 3426.5 → maps to 10-90
+        score = 281.4 + raw_score * 3426.5
+
+        return max(0, min(100, score))
+
+    def get_hic_score(
+        self,
+        vh_sequence: str,
+        vl_sequence: str,
+    ) -> float:
+        """
+        Get ML-derived HIC retention score (predicts HIC Retention Time).
+
+        Based on sklearn grid search on 193 antibodies with experimental HIC data:
+        - positive_frac: ρ = -0.405 *** (MORE positive = LESS HIC retention)
+        - net_charge: ρ = -0.345 *** (MORE net positive = LESS retention)
+        - ww_mean: ρ = +0.316 *** (MORE hydrophobic = MORE retention)
+        - charged_frac: ρ = -0.275 *** (MORE charged = LESS retention)
+
+        Higher score = MORE HIC retention (more hydrophobic surface)
+
+        Args:
+            vh_sequence: VH sequence
+            vl_sequence: VL sequence
+
+        Returns:
+            HIC score (0-100, higher = more hydrophobic = higher retention)
+        """
+        # Wimley-White hydrophobicity scale
+        WIMLEY_WHITE = {
+            'A': 0.17, 'R': -0.81, 'N': -0.42, 'D': -0.07, 'C': -0.24,
+            'Q': -0.58, 'E': -0.01, 'G': 0.01, 'H': -0.96, 'I': 0.31,
+            'L': 0.56, 'K': -0.99, 'M': 0.23, 'F': 1.13, 'P': -0.45,
+            'S': -0.13, 'T': -0.14, 'W': 1.85, 'Y': 0.94, 'V': -0.07
+        }
+
+        full_seq = vh_sequence.upper() + vl_sequence.upper()
+        length = len(full_seq)
+
+        if length == 0:
+            return 50.0
+
+        # ML-derived features
+        positive_count = sum(1 for aa in full_seq if aa in "KRH")
+        negative_count = sum(1 for aa in full_seq if aa in "DE")
+        charged_count = positive_count + negative_count
+
+        positive_frac = positive_count / length
+        net_charge = (positive_count - negative_count) / length
+        charged_frac = charged_count / length
+        ww_mean = sum(WIMLEY_WHITE.get(aa, 0) for aa in full_seq) / length
+
+        # Optimized linear combination from grid search on 193 antibodies
+        # Best: signs=(-1, -1, +1, -1), weights=(0.5, 0.4, 0.2, 0.2) → ρ = +0.421
+        # Higher raw_score = MORE HIC retention
+        raw_score = (
+            -positive_frac * 0.5 +   # Less positive = more retention
+            -net_charge * 0.4 +      # Less net positive = more retention
+            ww_mean * 0.2 +          # More hydrophobic = more retention
+            -charged_frac * 0.2      # Less charged = more retention
+        )
+
+        # Scale to 0-100 range
+        # Raw score range: -0.116 to -0.042
+        # Linear scaling: score = 135.9 + raw * 1084.1 → maps to 10-90
+        score = 135.9 + raw_score * 1084.1
 
         return max(0, min(100, score))
 

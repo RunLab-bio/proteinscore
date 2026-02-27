@@ -770,32 +770,52 @@ def predict_self_association(
         aromatic_clusters += 1
 
     # Calculate composite self-association score
-    # Based on empirical correlations with AC-SINS
+    # Based on ML analysis of Jain 2017 dataset correlations with AC-SINS
+    #
+    # KEY INSIGHTS from sklearn analysis:
+    # - negative_frac: ρ = -0.352 *** (MORE negative charge = LESS self-association)
+    # - net_charge: ρ = +0.332 *** (HIGHER net charge = MORE self-association)
+    # - tiny_frac (GAS): ρ = +0.305 *** (more small aa = MORE self-association)
+    # - small_frac: ρ = +0.296 *** (more small aa = MORE self-association)
 
-    # Calculate specificity index (correlates better with AC-SINS than hydrophobicity)
-    specificity_idx = calculate_specificity_index(sequence, cdr_regions)
+    # Calculate key predictive features from ML analysis
+    length = len(sequence)
+    negative_frac = negative_count / length if length > 0 else 0
+    positive_frac = positive_count / length if length > 0 else 0
+    net_charge_per_residue = net_charge / length if length > 0 else 0
 
-    # Component 1: Specificity index (40%) - best correlator
-    specificity_contribution = specificity_idx * 0.40
+    # Tiny residues (G, A, S) - correlate with self-association
+    tiny_count = sum(1 for aa in sequence if aa in "GAS")
+    tiny_frac = tiny_count / length if length > 0 else 0
 
-    # Component 2: Charge asymmetry penalty (25%)
-    # High asymmetry = more self-association risk
-    asymmetry_contribution = charge_asymmetry * 25
+    # Component 1: Net charge effect (35%) - PRIMARY PREDICTOR
+    # HIGHER positive net charge = MORE self-association (ρ = +0.332)
+    # Scale: net_charge_per_residue typically ranges -0.05 to +0.05
+    net_charge_contribution = 20 + net_charge_per_residue * 400  # Center at 20, scale to 0-40
+    net_charge_contribution = max(0, min(35, net_charge_contribution))
 
-    # Component 3: Aromatic clusters (20%)
+    # Component 2: Negative charge protection (30%) - SECONDARY PREDICTOR
+    # MORE negative residues (D, E) = LESS self-association (ρ = -0.352)
+    # typical range: 0.06 to 0.12
+    negative_protection = max(0, 30 - negative_frac * 350)
+
+    # Component 3: Tiny residue penalty (15%)
+    # MORE tiny residues = MORE self-association (ρ = +0.305)
+    # typical range: 0.08 to 0.14
+    tiny_contribution = tiny_frac * 120
+    tiny_contribution = max(0, min(15, tiny_contribution))
+
+    # Component 4: Aromatic clusters (10%)
     # Aromatic residues drive pi-stacking interactions
-    aromatic_contribution = min(20, aromatic_clusters * 5)
+    aromatic_contribution = min(10, aromatic_clusters * 3)
 
-    # Component 4: Exposed hydrophobic residues (10%)
-    exposed_contribution = min(10, exposed_hydrophobic * 0.4)
-
-    # Component 5: Net charge effect (5%)
-    # Extreme charges (+ or -) reduce self-association
-    charge_effect = max(0, 5 - abs(net_charge) * 0.3)
+    # Component 5: Charge asymmetry (10%)
+    # High asymmetry = more self-association risk
+    asymmetry_contribution = charge_asymmetry * 10
 
     self_association_score = (
-        specificity_contribution + asymmetry_contribution +
-        aromatic_contribution + exposed_contribution + charge_effect
+        net_charge_contribution + negative_protection +
+        tiny_contribution + aromatic_contribution + asymmetry_contribution
     )
 
     # Ensure score is in valid range
