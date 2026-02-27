@@ -1,0 +1,6 @@
+name,sequence,asn_positions,motif,deamidation_t_half_days,notes
+Model NG peptide,GSNGRG,[3],NG,1.0,Fastest deamidation motif
+Model NS peptide,GSNSRG,[3],NS,10.0,Fast deamidation
+Model NT peptide,GSNTRG,[3],NT,25.0,Moderate deamidation
+Model NH peptide,GSNHRG,[3],NH,20.0,Moderate-fast deamidation
+Model NA peptide,GSNARG,[3],NA,100.0,Slow deamidation

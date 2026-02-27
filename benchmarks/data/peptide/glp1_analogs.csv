@@ -1,0 +1,9 @@
+name,sequence,half_life_hours,half_life_category,dpp4_susceptible,position_2,modifications,source
+GLP-1 (7-37),HAEGTFTSDVSSYLEGQAAKEFIAWLVKGR,0.033,very_short,True,Ala,none,Native hormone
+GLP-1 (7-36)amide,HAEGTFTSDVSSYLEGQAAKEFIAWLVKGR,0.033,very_short,True,Ala,C-terminal amide,Native hormone
+Exenatide,HGEGTFTSDLSKQMEEEAVRLFIEWLKNGGPSSGAPPPS,2.4,short,False,Gly,Exendin-4 based,FDA label - Byetta
+Lixisenatide,HGEGTFTSDLSKQMEEEAVRLFIEWLKNGGPSSGAPPSKKKKKK,3.0,short,False,Gly,C-terminal Lys tail,FDA label - Adlyxin
+Liraglutide,HAEGTFTSDVSSYLEGQAAKEFIAWLVRGRG,13.0,medium,False,Ala,C16 fatty acid at Lys26,FDA label - Victoza
+Dulaglutide,HGEGTFTSDVSSYLEEQAAKEFIAWLVKGGGGGGGSGGGGSGGGGSAEPKSSDKTHTCPPCPAPELLGGPSVFLFPPKPK,120.0,long,False,Gly,"Fc fusion, Gly8Glu substitution",FDA label - Trulicity
+Semaglutide,HXEGTFTSDVSSYLEGQAAKEFIAWLVRGRG,168.0,long,False,Aib,"Aib8, C18 diacid at Lys26",FDA label - Ozempic
+Tirzepatide,YXEGTFTSDYSIXLDKIAQKAFVQWLIAGGPSSGAPPPS,120.0,long,False,Aib,"GIP/GLP-1 dual agonist, C20 diacid",FDA label - Mounjaro

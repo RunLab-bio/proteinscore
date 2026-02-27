@@ -1,0 +1,5 @@
+name,sequence,met_positions,cys_positions,oxidation_sensitive,notes
+Oxytocin,CYIQNCPLG,[],"[1, 6]",True,Disulfide bridge required for activity
+Vasopressin,CYFQNCPRG,[],"[1, 6]",True,Disulfide bridge required
+Calcitonin,CGNLSTCMLGTYTQDFNKFHTFPQTAIGVGAP,[8],"[1, 7]",True,Met8 oxidation reduces activity
+PTH (1-34),SVSEIQLMHNLGKHLNSMERVEWLRKKLQDVHNF,"[8, 18]",[],True,"Met8, Met18 susceptible"

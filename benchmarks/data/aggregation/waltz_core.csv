@@ -1,0 +1,15 @@
+sequence,amyloidogenic,source
+KLVFFA,True,Abeta core
+KLVFFAE,True,Abeta 16-22
+NFGAIL,True,hIAPP core
+GVATVA,True,Alpha-synuclein
+VEALYL,True,Insulin B
+STVIIE,True,Tau PHF6
+VQIVYK,True,Tau PHF6*
+MVGGVV,True,Abeta C-term
+NNQQNY,True,Sup35 prion
+GSGSGS,False,Gly-Ser linker
+DKEKEK,False,Charged peptide
+AAEAAK,False,Alpha-helix
+PPPPPP,False,Poly-Pro
+KKKKRR,False,NLS-like

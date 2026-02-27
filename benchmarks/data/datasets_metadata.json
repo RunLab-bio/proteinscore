@@ -1,0 +1,81 @@
+{
+  "embedded_datasets": {
+    "glp1_analogs": {
+      "category": "peptide",
+      "description": "GLP-1 receptor agonists with known half-lives",
+      "reference": "Lau et al. Front Endocrinol 2019; FDA labels",
+      "entries": 8
+    },
+    "dpp4_substrates": {
+      "category": "peptide",
+      "description": "DPP-4 cleavage substrates and products",
+      "reference": "Mentlein R. Regul Pept 1999; Lambeir et al. Chem Rev 2003",
+      "entries": 7
+    },
+    "oxidation_sensitive_peptides": {
+      "category": "peptide",
+      "description": "Peptides with known oxidation liabilities",
+      "reference": "Manning et al. Pharm Res 2010",
+      "entries": 4
+    },
+    "deamidation_sensitive_peptides": {
+      "category": "peptide",
+      "description": "Peptides with known deamidation liabilities",
+      "reference": "Robinson NE. PNAS 2002; Capasso S. J Pept Sci 2000",
+      "entries": 5
+    },
+    "waltz_core": {
+      "category": "aggregation",
+      "description": "Core amyloidogenic sequences from WALTZ-DB",
+      "reference": "Louros et al. Nucleic Acids Res 2020",
+      "entries": 14
+    },
+    "protherm_representatives": {
+      "category": "stability",
+      "description": "Representative proteins from ProThermDB",
+      "reference": "Nikam et al. Nucleic Acids Res 2021",
+      "entries": 5
+    }
+  },
+  "remote_datasets": {
+    "waltz_db": {
+      "category": "aggregation",
+      "description": "WALTZ-DB 2.0 hexapeptide database",
+      "url": "http://waltzdb.switchlab.org/",
+      "download_method": "web_export",
+      "format": "csv",
+      "size_estimate": "~100 KB",
+      "entries": 1416,
+      "note": "Requires manual export from web interface"
+    },
+    "fireprotdb": {
+      "category": "stability",
+      "description": "FireProtDB curated stability data",
+      "url": "https://loschmidt.chemi.muni.cz/fireprotdb/download/",
+      "download_method": "web_export",
+      "format": "csv",
+      "size_estimate": "~5 MB",
+      "note": "Multiple export formats available"
+    },
+    "prothermdb": {
+      "category": "stability",
+      "description": "ProThermDB thermodynamic database",
+      "url": "https://web.iitm.ac.in/bioinfo2/prothermdb/",
+      "download_method": "web_export",
+      "format": "csv",
+      "size_estimate": "~10 MB",
+      "entries": 32000,
+      "note": "Requires web interface query and export"
+    },
+    "iedb_mhc1": {
+      "category": "immunogenicity",
+      "description": "IEDB MHC Class I binding data",
+      "url": "https://www.iedb.org/",
+      "download_method": "api",
+      "format": "csv",
+      "size_estimate": "Variable",
+      "note": "Use IEDB REST API or web export"
+    }
+  },
+  "generated_at": "download_datasets.py"
+}
