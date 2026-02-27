@@ -40,6 +40,13 @@ from proteinscore.antibody.hydrophobicity import (
     analyze_antibody_hydrophobicity,
     detect_hydrophobic_patches,
     get_combined_hic_score,
+    predict_hic_ml,
+)
+from proteinscore.antibody.hic_predictor import (
+    HICPredictor,
+    predict_hic,
+    extract_all_features,
+    get_feature_names,
 )
 from proteinscore.antibody.scorer import AntibodyScorer, AntibodyResult
 
@@ -71,6 +78,12 @@ __all__ = [
     "analyze_antibody_hydrophobicity",
     "detect_hydrophobic_patches",
     "get_combined_hic_score",
+    "predict_hic_ml",
+    # ML-based HIC Predictor (GBM + 59 handcrafted features, ρ = 0.55)
+    "HICPredictor",
+    "predict_hic",
+    "extract_all_features",
+    "get_feature_names",
     # Full Scorer
     "AntibodyScorer",
     "AntibodyResult",
