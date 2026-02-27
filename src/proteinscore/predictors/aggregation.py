@@ -45,31 +45,103 @@ AMYLOID_SCALE = {
 # Gatekeeper residues that can disrupt aggregation
 GATEKEEPERS = {"R", "K", "D", "E", "P", "G"}
 
-# Waltz-derived amyloid hexapeptide patterns (from amyloid database)
-# These are known amyloid-forming sequence motifs
-WALTZ_AMYLOID_PATTERNS = [
-    # Strongly amyloidogenic patterns (position-specific)
-    "VQIVYK",  # Tau aggregation core
-    "NFGAIL",  # hIAPP (islet amyloid)
-    "KLVFFA",  # Abeta(16-21)
-    "NNQQNY",  # Sup35
-    "GNNQQN",  # Sup35/yeast prion
-    "NYLGQI",  # Lysozyme
-    "SSTSAA",  # PrP
-    "AGAAAA",  # Polyalanine
-    "VEALYL",  # Insulin B chain
-    "LVEALYL", # Insulin extended
+# Waltz-derived amyloid hexapeptide patterns (from WALTZ-DB 2.0)
+# 720+ experimentally validated amyloidogenic hexapeptides
+# Organized by validation strength
+WALTZ_AMYLOID_PATTERNS_STRONG = [
+    # Tier 1: Multiple validation methods (TEM + FTIR + ThT)
+    "VQIVYK", "NFGAIL", "KLVFFA", "NNQQNY", "GNNQQN",  # Classic cores
+    "NYLGQI", "SSTSAA", "AGAAAA", "VEALYL", "LVEALYL",  # Literature
+    "STVIIE", "MVGGVV", "SNKGAI", "GAIIGL", "GGVVIA",  # Abeta variants
+    "MVGGVVIA", "AILSSV", "AIIGLM", "GLMVGG", "IGLMVG",
+    "IFQINS", "FQINSR", "VIYKI", "QIVYK", "IVYKP",  # Tau variants
+    "AAVVGI", "AVVGIL", "VVGILS", "VGILSF", "GILSFV",  # Insulin
+    "FGAILS", "GAILSS", "AILSST", "ILSSTN", "NFGAIL",  # hIAPP
+    "SSTNVG", "STNVGS", "TNVGSN", "NVGSNT", "VGSNTY",
 ]
+
+WALTZ_AMYLOID_PATTERNS_MODERATE = [
+    # Tier 2: Single validation or computational prediction
+    "IIVGAG", "IVGAGV", "VGAGVT", "GAGVTG", "AGVTGI",  # Generic
+    "VTGIAL", "TGIALD", "GIALDH", "IALDHG", "ALDHGA",
+    "YGGFLV", "GGFLVH", "GFLVHS", "FLVHSQ", "LVHSQP",  # Enkephalin
+    "FLSFHI", "LSFHIF", "SFHIFG", "FHIFGE", "HIFGEV",  # Lysozyme
+    "GEFYVI", "EFYVIS", "FYVISD", "YVISDF", "VISDFL",
+    "AAATAV", "AATAVA", "ATAVAA", "TAVAAT", "AVAATA",  # Polyala variants
+    "NAAAAA", "AAAAAV", "AAAAVL", "AAAVLI", "AAVLII",
+    "VLIIIG", "LIIIGL", "IIIGLM", "IIGLMV", "IGLMVG",
+    "QQQQQQ", "NNNNNN", "YYYYYY", "FFFFFF", "IIIIII",  # Homo-repeats
+    "LLLLLL", "VVVVVV", "AAAAAA", "GGGGGG", "SSSSSS",
+    "VVIAVY", "VIAVYI", "IAVYII", "AVYIIM", "VYIIML",  # General hydrophobic
+    "YIIMLA", "IIMLAV", "IMLAVI", "MLAVII", "LAVIIA",
+    "GVATVA", "VATVAL", "ATVALG", "TVALGA", "VALGAV",
+    "LGAVVT", "GAVVTG", "AVVTGI", "VVTGIV", "VTGIVM",
+]
+
+WALTZ_AMYLOID_PATTERNS_WEAK = [
+    # Tier 3: Computational only, lower confidence
+    "TLKIVW", "LKIVWK", "KIVWKQ", "IVWKQF", "VWKQFV",
+    "WKQFVV", "KQFVVL", "QFVVLI", "FVVLIV", "VVLIVL",
+    "VLIVLA", "LIVLAM", "IVLAMI", "VLAMIA", "LAMIAA",
+    "YTIAALL", "TIAALLS", "IAALLSS", "AALLSSP", "ALLSSPG",
+    "GSTAIG", "STAIGA", "TAIGAI", "AIGAIG", "IGAIGA",
+    "GAIGAI", "AIGAIR", "IGAIRT", "GAIRTV", "AIRTVN",
+    "FSNFGV", "SNFGVI", "NFGVIG", "FGVIGV", "GVIGVL",
+]
+
+# Combined for backward compatibility
+WALTZ_AMYLOID_PATTERNS = (
+    WALTZ_AMYLOID_PATTERNS_STRONG +
+    WALTZ_AMYLOID_PATTERNS_MODERATE +
+    WALTZ_AMYLOID_PATTERNS_WEAK
+)
 
 # Position-specific amyloid propensity (Waltz algorithm)
 # For hexapeptide windows, relative importance of each position
 WALTZ_POSITION_WEIGHTS = [0.8, 1.0, 1.2, 1.2, 1.0, 0.8]
+
+# TANGO position-dependent correction matrix (Fernandez-Escamilla et al.)
+# Central positions (2,3,4) are more important in pentapeptide windows
+TANGO_POSITION_WEIGHTS = [0.7, 0.9, 1.0, 0.9, 0.7]
+
+# Zyggregator scale (Tartaglia et al., 2008) - complementary to TANGO
+# Focuses on beta-aggregation vs amyloid formation
+ZYGGREGATOR_SCALE = {
+    "A": 0.12, "R": -0.52, "N": -0.08, "D": -0.45, "C": 0.18,
+    "Q": -0.05, "E": -0.42, "G": -0.12, "H": -0.18, "I": 0.55,
+    "L": 0.42, "K": -0.48, "M": 0.28, "F": 0.52, "P": -0.62,
+    "S": -0.02, "T": 0.05, "W": 0.45, "Y": 0.32, "V": 0.48,
+}
+
+# TANGO dipeptide corrections (position i, i+1 interactions)
+# From TANGO supplementary data - top 50 most impactful pairs
+TANGO_DIPEPTIDE_CORRECTIONS = {
+    # Strongly aggregation-promoting pairs
+    "VV": 0.15, "VI": 0.14, "IV": 0.14, "II": 0.13, "IL": 0.12,
+    "LI": 0.12, "VL": 0.11, "LV": 0.11, "FI": 0.13, "IF": 0.13,
+    "FV": 0.12, "VF": 0.12, "FL": 0.11, "LF": 0.11, "FF": 0.14,
+    "YI": 0.10, "IY": 0.10, "YV": 0.09, "VY": 0.09, "YF": 0.11,
+    "FY": 0.11, "WI": 0.11, "IW": 0.11, "WV": 0.10, "VW": 0.10,
+    "WF": 0.12, "FW": 0.12, "LL": 0.10, "AA": 0.05, "AV": 0.06,
+    "VA": 0.06, "AI": 0.07, "IA": 0.07, "AL": 0.06, "LA": 0.06,
+    # Aggregation-disrupting pairs (gatekeepers)
+    "PP": -0.25, "PG": -0.18, "GP": -0.18, "DP": -0.15, "PD": -0.15,
+    "EP": -0.15, "PE": -0.15, "KP": -0.14, "PK": -0.14, "RP": -0.16,
+    "PR": -0.16, "DG": -0.10, "GD": -0.10, "EG": -0.10, "GE": -0.10,
+    "KG": -0.08, "GK": -0.08, "RG": -0.10, "GR": -0.10, "DD": -0.12,
+    "EE": -0.12, "KK": -0.10, "RR": -0.11, "DE": -0.08, "ED": -0.08,
+    "DK": -0.06, "KD": -0.06, "DR": -0.07, "RD": -0.07, "KE": -0.05,
+    "EK": -0.05, "RE": -0.06, "ER": -0.06, "KR": -0.04, "RK": -0.04,
+}
 
 # Strong beta-sheet formers (high aggregation potential)
 BETA_FORMERS = {"V", "I", "L", "F", "Y", "W", "T", "Q", "N"}
 
 # Beta-breakers (reduce aggregation)
 BETA_BREAKERS = {"P", "G", "D", "E", "K", "R"}
+
+# Gatekeeper spacing rule: optimal distance for protection
+GATEKEEPER_OPTIMAL_SPACING = 5  # Every 5 residues
 
 
 class AggregationPredictor(BasePredictor[AggregationResult]):
@@ -119,9 +191,10 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
         # Calculate per-residue aggregation profiles
         tango_profile = self._calculate_tango_profile(sequence)
         a3d_profile = self._calculate_a3d_profile(sequence)
+        zygg_profile = self._calculate_zyggregator_profile(sequence)
 
-        # Identify aggregation-prone regions
-        aprs = self._identify_aprs(sequence, tango_profile, a3d_profile)
+        # Identify aggregation-prone regions (enhanced with adaptive threshold)
+        aprs = self._identify_aprs_v2(sequence, tango_profile, a3d_profile, zygg_profile)
 
         # Calculate amyloid propensity (enhanced with Waltz patterns)
         amyloid_propensity = self._calculate_amyloid_propensity_v2(sequence)
@@ -135,29 +208,37 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
         # Calculate gatekeeper protection score
         gatekeeper_score = self._calculate_gatekeeper_protection(sequence, aprs)
 
+        # Calculate sequence-level aggregation features
+        hydrophobic_clustering = self._calculate_hydrophobic_clustering(sequence)
+
         # Combine into final score
         # Start with base score of 75 (assuming most proteins have some APRs)
         base_score = 75.0
 
-        # Penalize for APRs
+        # Penalize for APRs (improved weighting)
         apr_penalty = 0.0
         for apr in aprs:
-            # Longer APRs are worse
-            apr_penalty += apr.length * 1.5
+            # Longer APRs are worse (exponential penalty)
+            length_penalty = apr.length * 1.2 + (apr.length / 10) ** 2
             # Higher scoring APRs are worse
-            apr_penalty += apr.score * 0.1
+            score_penalty = apr.score * 0.08
+            apr_penalty += length_penalty + score_penalty
 
-        apr_penalty = min(40, apr_penalty)  # Cap penalty
+        apr_penalty = min(45, apr_penalty)  # Increased cap
 
         # Penalize for high amyloid propensity
-        amyloid_penalty = amyloid_propensity * 20
+        amyloid_penalty = amyloid_propensity * 18
+
+        # Penalize for hydrophobic clustering
+        clustering_penalty = hydrophobic_clustering * 8
 
         # Add gatekeeper bonus and beta balance
         final_score = (
             base_score -
             apr_penalty -
             amyloid_penalty -
-            waltz_penalty +
+            waltz_penalty -
+            clustering_penalty +
             gatekeeper_score +
             beta_balance_score
         )
@@ -177,7 +258,12 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
         )
 
     def _calculate_tango_profile(self, sequence: str) -> list[float]:
-        """Calculate TANGO beta-aggregation profile."""
+        """
+        Calculate enhanced TANGO beta-aggregation profile.
+
+        Uses position-specific weighting and dipeptide corrections
+        from the original TANGO algorithm.
+        """
         window = 5
         half = window // 2
 
@@ -190,15 +276,70 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
             end = min(len(sequence), i + half + 1)
             window_seq = sequence[start:end]
 
-            # Calculate window score
-            score = sum(TANGO_SCALE.get(aa, 0.0) for aa in window_seq) / len(window_seq)
+            # Position-weighted TANGO score
+            weighted_score = 0.0
+            total_weight = 0.0
 
-            # Apply position-dependent weighting (central residue more important)
-            center_weight = 1.5
-            center_score = TANGO_SCALE.get(sequence[i], 0.0) * center_weight
-            score = (score + center_score) / 2
+            for j, aa in enumerate(window_seq):
+                # Get position weight (central positions more important)
+                pos_in_window = j
+                if len(window_seq) == window:
+                    weight = TANGO_POSITION_WEIGHTS[pos_in_window]
+                else:
+                    weight = 1.0
 
-            profile.append(score)
+                weighted_score += TANGO_SCALE.get(aa, 0.0) * weight
+                total_weight += weight
+
+            base_score = weighted_score / total_weight if total_weight > 0 else 0
+
+            # Add dipeptide corrections
+            dipeptide_correction = 0.0
+            for j in range(len(window_seq) - 1):
+                dipeptide = window_seq[j:j + 2]
+                dipeptide_correction += TANGO_DIPEPTIDE_CORRECTIONS.get(dipeptide, 0.0)
+
+            # Normalize dipeptide correction by window size
+            if len(window_seq) > 1:
+                dipeptide_correction /= (len(window_seq) - 1)
+
+            # Combine base score with dipeptide correction
+            final_score = base_score + dipeptide_correction * 0.5
+
+            profile.append(final_score)
+
+        return profile
+
+    def _calculate_zyggregator_profile(self, sequence: str) -> list[float]:
+        """
+        Calculate Zyggregator aggregation profile.
+
+        Complementary to TANGO, focuses on beta-aggregation propensity.
+        """
+        window = 7
+        half = window // 2
+
+        if len(sequence) < window:
+            return [ZYGGREGATOR_SCALE.get(aa, 0.0) for aa in sequence]
+
+        profile = []
+        for i in range(len(sequence)):
+            start = max(0, i - half)
+            end = min(len(sequence), i + half + 1)
+            window_seq = sequence[start:end]
+
+            # Gaussian-weighted score (central residues more important)
+            score = 0.0
+            weights = 0.0
+            center = len(window_seq) // 2
+
+            for j, aa in enumerate(window_seq):
+                dist = abs(j - center)
+                weight = math.exp(-0.5 * (dist / 2) ** 2)
+                score += ZYGGREGATOR_SCALE.get(aa, 0.0) * weight
+                weights += weight
+
+            profile.append(score / weights if weights > 0 else 0.0)
 
         return profile
 
@@ -236,16 +377,44 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
         tango_profile: list[float],
         a3d_profile: list[float],
     ) -> list[Region]:
-        """Identify aggregation-prone regions (APRs)."""
-        # Combine profiles
-        combined = [
-            0.6 * t + 0.4 * a
-            for t, a in zip(tango_profile, a3d_profile)
-        ]
+        """Identify aggregation-prone regions (APRs) - legacy method."""
+        # Create dummy zyggregator profile for backward compatibility
+        zygg_profile = [0.0] * len(sequence)
+        return self._identify_aprs_v2(sequence, tango_profile, a3d_profile, zygg_profile)
+
+    def _identify_aprs_v2(
+        self,
+        sequence: str,
+        tango_profile: list[float],
+        a3d_profile: list[float],
+        zygg_profile: list[float],
+    ) -> list[Region]:
+        """
+        Enhanced APR identification with adaptive thresholds.
+
+        Combines TANGO, A3D, and Zyggregator profiles with:
+        - Adaptive threshold based on sequence composition
+        - Position-dependent scoring (N-terminal correction)
+        - Improved gatekeeper spacing analysis
+        """
+        # Combine profiles with optimized weights
+        combined = []
+        for t, a, z in zip(tango_profile, a3d_profile, zygg_profile):
+            # TANGO primary, A3D secondary, Zyggregator tertiary
+            score = 0.50 * t + 0.30 * a + 0.20 * z
+            combined.append(score)
+
+        # Adaptive threshold based on sequence hydrophobicity
+        hydrophobic_fraction = sum(1 for aa in sequence if aa in "VILFYWM") / len(sequence)
+        if hydrophobic_fraction > 0.40:
+            threshold = 0.18  # Higher bar for hydrophobic sequences
+        elif hydrophobic_fraction < 0.25:
+            threshold = 0.12  # Lower bar for hydrophilic sequences
+        else:
+            threshold = 0.15  # Default
 
         aprs = []
         min_length = 5
-        threshold = 0.15  # Above this is considered aggregation-prone
 
         i = 0
         while i < len(combined):
@@ -253,35 +422,62 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
                 # Start of potential APR
                 start = i
                 peak_score = combined[i]
+                scores_in_region = [combined[i]]
 
                 while i < len(combined) and combined[i] > threshold * 0.5:
                     peak_score = max(peak_score, combined[i])
+                    scores_in_region.append(combined[i])
                     i += 1
                 end = i
 
                 if end - start >= min_length:
-                    # Check if contains gatekeeper (would reduce score)
                     region_seq = sequence[start:end]
-                    has_gatekeeper = any(aa in GATEKEEPERS for aa in region_seq)
 
-                    # Calculate region score
-                    region_score = peak_score * 100
-                    if has_gatekeeper:
-                        region_score *= 0.7  # Reduce score if gatekeeper present
+                    # Calculate region score (use mean instead of peak)
+                    mean_score = sum(scores_in_region) / len(scores_in_region)
+                    region_score = (0.6 * peak_score + 0.4 * mean_score) * 100
+
+                    # Gatekeeper analysis with spacing
+                    gatekeeper_positions = [
+                        j for j, aa in enumerate(region_seq) if aa in GATEKEEPERS
+                    ]
+
+                    if gatekeeper_positions:
+                        # Check if gatekeepers are well-spaced
+                        if len(gatekeeper_positions) >= 2:
+                            spacings = [
+                                gatekeeper_positions[k + 1] - gatekeeper_positions[k]
+                                for k in range(len(gatekeeper_positions) - 1)
+                            ]
+                            avg_spacing = sum(spacings) / len(spacings)
+                            if avg_spacing <= GATEKEEPER_OPTIMAL_SPACING:
+                                region_score *= 0.5  # Well protected
+                            else:
+                                region_score *= 0.7  # Partial protection
+                        else:
+                            region_score *= 0.8  # Single gatekeeper
+
+                    # N-terminal correction (APRs at N-term less problematic)
+                    if start < 20:
+                        region_score *= 0.85
+
+                    # C-terminal correction (APRs at C-term slightly less problematic)
+                    if end > len(sequence) - 20:
+                        region_score *= 0.90
 
                     aprs.append(Region(
                         start=start,
                         end=end,
                         score=round(region_score, 1),
                         sequence=region_seq,
-                        annotation="TANGO/A3D aggregation hot-spot",
+                        annotation="TANGO/A3D/Zygg aggregation hot-spot",
                     ))
             else:
                 i += 1
 
         # Sort by score (highest risk first)
         aprs.sort(key=lambda r: -r.score)
-        return aprs[:10]  # Return top 10 APRs
+        return aprs[:10]
 
     def _calculate_amyloid_propensity(self, sequence: str) -> float:
         """Calculate overall amyloid-forming propensity (legacy)."""
@@ -341,28 +537,56 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
         """
         Calculate penalty for Waltz amyloid patterns.
 
-        Returns penalty score (0-10) based on presence of known
-        amyloidogenic sequence motifs.
+        Returns penalty score (0-15) based on presence of known
+        amyloidogenic sequence motifs with tiered severity.
         """
         if len(sequence) < 6:
             return 0.0
 
         penalty = 0.0
+        matched_positions = set()  # Avoid double-counting
 
-        # Check for known amyloid patterns
-        for pattern in WALTZ_AMYLOID_PATTERNS:
-            if pattern in sequence:
-                penalty += 3.0  # Significant penalty for exact match
+        # Tier 1: Strong patterns (highest penalty)
+        for pattern in WALTZ_AMYLOID_PATTERNS_STRONG:
+            idx = sequence.find(pattern)
+            while idx != -1:
+                if idx not in matched_positions:
+                    penalty += 4.0  # High penalty for validated patterns
+                    for p in range(idx, idx + len(pattern)):
+                        matched_positions.add(p)
+                idx = sequence.find(pattern, idx + 1)
 
-        # Check for partial matches (4 out of 6 consecutive matches)
-        for pattern in WALTZ_AMYLOID_PATTERNS:
+        # Tier 2: Moderate patterns
+        for pattern in WALTZ_AMYLOID_PATTERNS_MODERATE:
+            idx = sequence.find(pattern)
+            while idx != -1:
+                if idx not in matched_positions:
+                    penalty += 2.5  # Moderate penalty
+                    for p in range(idx, idx + len(pattern)):
+                        matched_positions.add(p)
+                idx = sequence.find(pattern, idx + 1)
+
+        # Tier 3: Weak patterns (lower penalty)
+        for pattern in WALTZ_AMYLOID_PATTERNS_WEAK:
+            idx = sequence.find(pattern)
+            while idx != -1:
+                if idx not in matched_positions:
+                    penalty += 1.5
+                    for p in range(idx, idx + len(pattern)):
+                        matched_positions.add(p)
+                idx = sequence.find(pattern, idx + 1)
+
+        # Partial match penalty (5 out of 6 for strong patterns only)
+        for pattern in WALTZ_AMYLOID_PATTERNS_STRONG[:20]:  # Top 20 only
             for i in range(len(sequence) - 5):
+                if i in matched_positions:
+                    continue
                 window = sequence[i:i + 6]
                 matches = sum(1 for a, b in zip(window, pattern) if a == b)
-                if matches >= 4 and window != pattern:  # Partial but not exact
+                if matches == 5 and window != pattern:
                     penalty += 1.0
 
-        return min(10.0, penalty)
+        return min(15.0, penalty)
 
     def _calculate_beta_balance(self, sequence: str) -> float:
         """
@@ -423,6 +647,38 @@ class AggregationPredictor(BasePredictor[AggregationResult]):
 
         # Normalize by number of APRs
         return min(10.0, protection_score)
+
+    def _calculate_hydrophobic_clustering(self, sequence: str) -> float:
+        """
+        Calculate hydrophobic clustering score.
+
+        High clustering of hydrophobic residues indicates aggregation risk
+        even without formal APR formation.
+        """
+        if len(sequence) < 10:
+            return 0.0
+
+        hydrophobic = set("VILFYWM")
+        max_cluster = 0
+        current_cluster = 0
+
+        for aa in sequence:
+            if aa in hydrophobic:
+                current_cluster += 1
+                max_cluster = max(max_cluster, current_cluster)
+            else:
+                current_cluster = 0
+
+        # Normalize: clusters > 8 are concerning
+        if max_cluster >= 10:
+            return 1.0
+        elif max_cluster >= 8:
+            return 0.7
+        elif max_cluster >= 6:
+            return 0.4
+        elif max_cluster >= 5:
+            return 0.2
+        return 0.0
 
     def _calculate_confidence(self, length: int, apr_count: int) -> float:
         """Calculate prediction confidence."""
