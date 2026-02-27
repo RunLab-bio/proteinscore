@@ -1,0 +1,142 @@
+[
+  {
+    "name": "Lepirudin",
+    "sequence": "LVYTDCTESGQNLCLCEGSNVCGQGNKCILGSDGEKNQCVTGEGTPKPQSHNDGDFEEIPEEYLQ",
+    "halflife_hours": 1.3,
+    "length": 65,
+    "source": "THPdb"
+  },
+  {
+    "name": "Bivalirudin",
+    "sequence": "FPRPGGGGNGDFEEIPEEYL",
+    "halflife_hours": 0.42,
+    "length": 20,
+    "source": "THPdb"
+  },
+  {
+    "name": "Leuprolide",
+    "sequence": "PHWSYLLR",
+    "halflife_hours": 3.0,
+    "length": 8,
+    "source": "THPdb"
+  },
+  {
+    "name": "Salmon Calcitonin",
+    "sequence": "CSNLSTCVLGKLSQELHKLQTYPRTNTGSGTP",
+    "halflife_hours": 1.33,
+    "length": 32,
+    "source": "THPdb"
+  },
+  {
+    "name": "Vasopressin",
+    "sequence": "CYFQNCPRG",
+    "halflife_hours": 0.33,
+    "length": 9,
+    "source": "THPdb"
+  },
+  {
+    "name": "Oxytocin",
+    "sequence": "CYIQNCPLG",
+    "halflife_hours": 0.1,
+    "length": 9,
+    "source": "THPdb"
+  },
+  {
+    "name": "Enfuvirtide",
+    "sequence": "YTSLIHSLIEESQNQQEKNEQELLELDKWASLWNWF",
+    "halflife_hours": 0.6,
+    "length": 36,
+    "source": "THPdb"
+  },
+  {
+    "name": "Exenatide",
+    "sequence": "HGEGTFTSDLSKQMEEEAVRLFIEWLKNGGPSSGAPPPS",
+    "halflife_hours": 2.4,
+    "length": 39,
+    "source": "THPdb"
+  },
+  {
+    "name": "Mecasermin",
+    "sequence": "GPETLCGAELVDALQFVCGDRGFYFNKPTGYGSSSRRAPQTGIVDECCFRSCDLRRLEMYCAPLKPAKSA",
+    "halflife_hours": 2.0,
+    "length": 70,
+    "source": "THPdb"
+  },
+  {
+    "name": "Pramlintide",
+    "sequence": "KCNTATCATQRLANFLVHSSNNFGPILPPTNVGSNTY",
+    "halflife_hours": 0.8,
+    "length": 37,
+    "source": "THPdb"
+  },
+  {
+    "name": "Corticotropin",
+    "sequence": "SYSMEHFRWGKPVGKKRRPVKVYPDGAEDQLAEAFPLEF",
+    "halflife_hours": 0.25,
+    "length": 39,
+    "source": "THPdb"
+  },
+  {
+    "name": "Nesiritide",
+    "sequence": "SPKMVQGSGCFGRKMDRISSSSGLGCKVLRRH",
+    "halflife_hours": 0.3,
+    "length": 32,
+    "source": "THPdb"
+  },
+  {
+    "name": "Thymalfasin",
+    "sequence": "SDAAVDTSSEITTKDLKEKKEVVEEAEN",
+    "halflife_hours": 2.0,
+    "length": 28,
+    "source": "THPdb"
+  },
+  {
+    "name": "Liraglutide",
+    "sequence": "HAEGTFTSDVSSYLEGQAAKEEFIIAWLVKGRG",
+    "halflife_hours": 13.0,
+    "length": 33,
+    "source": "THPdb"
+  },
+  {
+    "name": "Tesamorelin",
+    "sequence": "YADAIFTNSYRKVLGQLSARKLLQDIMSRQQGESNQERGARARL",
+    "halflife_hours": 0.63,
+    "length": 44,
+    "source": "THPdb"
+  },
+  {
+    "name": "Teduglutide",
+    "sequence": "HGDGSFSDEMNTILDNLAARDFINWLIQTKITD",
+    "halflife_hours": 2.0,
+    "length": 33,
+    "source": "THPdb"
+  },
+  {
+    "name": "Sermorelin",
+    "sequence": "YADAIFTNSYRKVLGQLSARKLLQDIMSRQ",
+    "halflife_hours": 0.2,
+    "length": 30,
+    "source": "THPdb"
+  },
+  {
+    "name": "Aprotinin",
+    "sequence": "RPDFCLEPPYTGPCKARIIRYFYNAKAGLCQTFVYGGCRAKRNNFKSAEDCMRTCGGA",
+    "halflife_hours": 2.5,
+    "length": 58,
+    "source": "THPdb"
+  },
+  {
+    "name": "Alirocumab",
+    "sequence": "NA",
+    "halflife_hours": 480.0,
+    "length": 2,
+    "source": "THPdb"
+  },
+  {
+    "name": "Sebelipase alfa",
+    "sequence": "SGGKLTAVDPETNMNVSEIISYWGFPSEEYLVETEDGYILCLNRIPHGRKNHSDKGPKPV",
+    "halflife_hours": 0.11,
+    "length": 60,
+    "source": "THPdb"
+  }
+]
