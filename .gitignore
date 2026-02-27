@@ -110,3 +110,7 @@ benchmarks/results/
 credentials.json
 secrets.json
 infrastructure/
+
+# Large model files (experimental)
+models/*.pt
+models/*.log
