@@ -44,12 +44,19 @@ class SolubilityClass(str, Enum):
 
     @classmethod
     def from_score(cls, score: float) -> SolubilityClass:
-        """Classify solubility from a 0-100 score."""
-        if score >= 80:
+        """Classify solubility from a 0-100 score.
+
+        Thresholds calibrated against CamSol/ProteinSol benchmark:
+        - HIGH: >10 mg/mL experimental solubility (score >= 70)
+        - MEDIUM: 1-10 mg/mL (score 52-70)
+        - LOW: <1 mg/mL (score 35-52)
+        - AGGREGATION_PRONE: severely aggregation-prone sequences (<35)
+        """
+        if score >= 70:
             return cls.HIGH
-        if score >= 60:
+        if score >= 52:
             return cls.MEDIUM
-        if score >= 40:
+        if score >= 35:
             return cls.LOW
         return cls.AGGREGATION_PRONE
 

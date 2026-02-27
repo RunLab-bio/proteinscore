@@ -61,11 +61,17 @@ solubility = [
 aggregation = [
     "biopython>=1.81",
 ]
+esm2 = [
+    "transformers>=4.30.0",
+    "torch>=2.0.0",
+]
 all = [
     "biopython>=1.81",
     "pandas>=2.0.0",
     "matplotlib>=3.7.0",
     "seaborn>=0.12.0",
+    "transformers>=4.30.0",
+    "torch>=2.0.0",
 ]
 api = [
     "fastapi>=0.109.0",

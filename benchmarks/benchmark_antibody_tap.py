@@ -246,10 +246,12 @@ def run_tap_benchmark(
         'acsins_agg': {'exp': [], 'pred': []},
         'acsins_hic': {'exp': [], 'pred': []},
         'acsins_psh': {'exp': [], 'pred': []},
+        'acsins_ml': {'exp': [], 'pred': []},  # ML-derived self-association score
 
         # Cross-interaction (CSI-BLI) correlations
         'csibli_total': {'exp': [], 'pred': []},
         'csibli_liability': {'exp': [], 'pred': []},
+        'csibli_ml': {'exp': [], 'pred': []},  # ML-derived cross-interaction score
     }
 
     # TAP metric distributions
@@ -278,6 +280,8 @@ def run_tap_benchmark(
             # Get specialized scores
             agg_score = scorer.get_aggregation_score(ab.vh_sequence, ab.vl_sequence)
             expr_score = scorer.get_expression_score(ab.vh_sequence, ab.vl_sequence)
+            self_assoc_score = scorer.get_self_association_score(ab.vh_sequence, ab.vl_sequence)
+            cross_inter_score = scorer.get_cross_interaction_score(ab.vh_sequence, ab.vl_sequence)
 
             # Expression correlations
             if ab.expression is not None:
@@ -305,6 +309,9 @@ def run_tap_benchmark(
                 results['acsins_psh']['exp'].append(-ab.ac_sins)
                 results['acsins_psh']['pred'].append(-result.tap_result.psh.value)  # Lower PSH = better
 
+                results['acsins_ml']['exp'].append(-ab.ac_sins)
+                results['acsins_ml']['pred'].append(self_assoc_score)  # ML-derived score
+
             # Cross-interaction correlations (lower CSI-BLI = better)
             if ab.csi_bli is not None:
                 results['csibli_total']['exp'].append(-ab.csi_bli)
@@ -312,6 +319,9 @@ def run_tap_benchmark(
 
                 results['csibli_liability']['exp'].append(-ab.csi_bli)
                 results['csibli_liability']['pred'].append(result.liability_score)
+
+                results['csibli_ml']['exp'].append(-ab.csi_bli)
+                results['csibli_ml']['pred'].append(cross_inter_score)
 
             if verbose and (i + 1) % 25 == 0:
                 print(f"  Processed {i + 1}/{len(antibodies)} antibodies...")
@@ -339,10 +349,12 @@ def run_tap_benchmark(
             ('Aggregation Score', 'acsins_agg'),
             ('HIC Proxy', 'acsins_hic'),
             ('PSH (Hydrophobicity)', 'acsins_psh'),
+            ('ML Self-Association', 'acsins_ml'),
         ],
         'Cross-Interaction (CSI-BLI)': [
             ('Total Score', 'csibli_total'),
             ('Liability Score', 'csibli_liability'),
+            ('ML Cross-Interaction', 'csibli_ml'),
         ],
     }
 
