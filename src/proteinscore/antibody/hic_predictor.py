@@ -333,8 +333,19 @@ class HICPredictor:
             self._init_builtin_model()
 
     def _init_builtin_model(self) -> None:
-        """Initialize with built-in linear approximation of GBM."""
-        # Try to load from JSON file first (more accurate)
+        """Initialize with built-in GBM model or linear approximation."""
+        # Try to load GBM model first (best accuracy: ρ = 0.55)
+        gbm_path = Path(__file__).parent / "models" / "hic_gbm_model.pkl"
+
+        if gbm_path.exists():
+            try:
+                self._load_model(gbm_path)
+                if self.model is not None:
+                    return  # Successfully loaded GBM
+            except (pickle.UnpicklingError, IOError):
+                pass  # Fall back to linear model
+
+        # Try to load from JSON file (linear approximation)
         json_path = Path(__file__).parent / "models" / "hic_linear_coefficients.json"
 
         if json_path.exists():

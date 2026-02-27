@@ -513,7 +513,7 @@ def main():
         print(f"  ✅ score(): total={result.total_score:.1f}")
         print(f"     TAP score: {result.tap_score:.1f}")
         print(f"     Liability score: {result.liability_score:.1f}")
-        print(f"     HIC proxy: {result.hic_proxy:.2f}")
+        print(f"     HIC score (ML): {result.hic_score:.1f}")
         results.append(ValidationResult("antibody", "AntibodyScorer", "score", passed, f"total={result.total_score:.1f}", elapsed))
 
     # =========================================================================

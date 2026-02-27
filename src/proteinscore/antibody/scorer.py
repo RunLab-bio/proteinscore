@@ -20,6 +20,7 @@ from proteinscore.antibody.liabilities import (
     LiabilityScanResult,
     LiabilitySeverity,
 )
+from proteinscore.antibody.hic_predictor import HICPredictor
 
 
 # =============================================================================
@@ -43,7 +44,8 @@ class AntibodyResult:
     # Scores
     tap_score: float           # 0-100 based on TAP flags
     liability_score: float     # 0-100 based on liabilities
-    hic_proxy: float           # HIC retention time proxy
+    hic_proxy: float           # Legacy HIC heuristic (for backwards compatibility)
+    hic_score: float           # ML-based HIC score (GBM, ρ=0.55)
     total_score: float         # Combined developability score
 
     # CDR info
@@ -93,7 +95,8 @@ class AntibodyResult:
             "risk_level": self.risk_level,
             "tap_score": self.tap_score,
             "liability_score": self.liability_score,
-            "hic_proxy": self.hic_proxy,
+            "hic_score": self.hic_score,
+            "hic_proxy": self.hic_proxy,  # Legacy
             "tap_metrics": {
                 "cdr_length": self.tap_result.cdr_length.value,
                 "psh": self.tap_result.psh.value,
@@ -151,6 +154,7 @@ class AntibodyScorer:
         self,
         hydrophobicity_scale: str = "jain",
         check_aggregation: bool = True,
+        use_ml_hic: bool = True,
     ):
         """
         Initialize antibody scorer.
@@ -159,6 +163,7 @@ class AntibodyScorer:
             hydrophobicity_scale: Scale for PSH calculation
                                  "jain" recommended for HIC correlation
             check_aggregation: Also scan for aggregation-prone regions
+            use_ml_hic: Use ML-based HIC predictor (GBM, ρ=0.55) instead of heuristic
         """
         self._cdr_detector = CDRDetector(numbering_scheme="chothia")
         self._tap_metrics = TAPMetrics(
@@ -169,6 +174,8 @@ class AntibodyScorer:
             cdr_detector=self._cdr_detector,
             check_aggregation=check_aggregation,
         )
+        self._use_ml_hic = use_ml_hic
+        self._hic_predictor = HICPredictor() if use_ml_hic else None
 
     def score(
         self,
@@ -195,8 +202,19 @@ class AntibodyScorer:
         vh_liabilities = self._liability_scanner.scan(vh_sequence, "heavy")
         vl_liabilities = self._liability_scanner.scan(vl_sequence, "light")
 
-        # Calculate HIC proxy
+        # Calculate HIC scores
+        # Legacy heuristic (for backwards compatibility)
         hic_proxy = self._tap_metrics.calculate_hic_proxy(vh_sequence, vl_sequence)
+
+        # ML-based HIC prediction (GBM with 59 features, ρ=0.55)
+        if self._hic_predictor is not None:
+            hic_result = self._hic_predictor.predict(vh_sequence, vl_sequence)
+            # Raw score is normalized HIC retention (0-1 scale, ~0.5 is median)
+            # Convert to 0-100 developability score (lower retention = better)
+            ml_hic_score = max(0, min(100, 100 - hic_result.percentile))
+        else:
+            # Fallback to heuristic
+            ml_hic_score = max(0, min(100, 50 - (hic_proxy * 100)))
 
         # Detect CDRs
         vh_cdrs, vl_cdrs = self._cdr_detector.detect_paired(vh_sequence, vl_sequence)
@@ -206,15 +224,11 @@ class AntibodyScorer:
         liability_score = (vh_liabilities.liability_score + vl_liabilities.liability_score) / 2
 
         # Combined score (weighted)
-        # TAP: 50%, Liabilities: 30%, HIC normalization: 20%
-        # HIC proxy typically ranges from -0.5 to 0.5
-        # Convert to 0-100 scale (lower hydrophobicity = better)
-        hic_score = max(0, min(100, 50 - (hic_proxy * 100)))
-
+        # TAP: 50%, Liabilities: 30%, HIC (ML): 20%
         total_score = (
             0.50 * tap_score +
             0.30 * liability_score +
-            0.20 * hic_score
+            0.20 * ml_hic_score
         )
 
         return AntibodyResult(
@@ -225,7 +239,8 @@ class AntibodyScorer:
             vl_liabilities=vl_liabilities,
             tap_score=round(tap_score, 1),
             liability_score=round(liability_score, 1),
-            hic_proxy=hic_proxy,
+            hic_proxy=hic_proxy,  # Legacy
+            hic_score=round(ml_hic_score, 1),  # ML-based
             total_score=round(total_score, 1),
             vh_cdrs=vh_cdrs,
             vl_cdrs=vl_cdrs,
@@ -500,19 +515,10 @@ class AntibodyScorer:
         vl_sequence: str,
     ) -> float:
         """
-        Get ML-optimized HIC retention score (predicts HIC Retention Time).
+        Get ML-based HIC retention score using GBM model.
 
-        Based on Ridge regression trained on 180 antibodies with experimental HIC data.
-        Uses combined CDR features + SAP (Surface Accessibility Proxy).
-
-        Key features (from ML analysis):
-        - total_aromatic: ρ = +0.326 *** (MORE aromatic = MORE HIC retention)
-        - net_charge: ρ = -0.251 *** (MORE positive = LESS retention)
-        - total_length: ρ = +0.242 *** (LONGER = MORE retention)
-        - sap_score: ρ = +0.243 *** (Surface Accessibility Proxy)
-
-        Validated performance: Spearman ρ = 0.38 (5-fold CV)
-        Theoretical max for sequence-only: ρ ≈ 0.35-0.40 (FLAb2, 2025)
+        Uses HICPredictor with 59 handcrafted features trained on Jain 2017 dataset.
+        Validated performance: Spearman ρ = 0.55 ± 0.04 (5-fold CV)
 
         Higher score = MORE HIC retention (more hydrophobic surface)
 
@@ -521,54 +527,15 @@ class AntibodyScorer:
             vl_sequence: VL sequence
 
         Returns:
-            HIC score (0-100, higher = more hydrophobic = higher retention)
+            HIC retention percentile (0-100, higher = more hydrophobic)
         """
-        # Wimley-White hydrophobicity scale (for SAP calculation)
-        WIMLEY_WHITE = {
-            'A': 0.17, 'R': -0.81, 'N': -0.42, 'D': -1.23, 'C': 0.24,
-            'Q': -0.58, 'E': -2.02, 'G': 0.01, 'H': -0.96, 'I': 0.31,
-            'L': 0.56, 'K': -0.99, 'M': 0.23, 'F': 1.13, 'P': -0.45,
-            'S': -0.13, 'T': -0.14, 'W': 1.85, 'Y': 0.94, 'V': -0.07
-        }
-
-        full_seq = vh_sequence.upper() + vl_sequence.upper()
-        length = len(full_seq)
-
-        if length == 0:
-            return 50.0
-
-        # Feature 1: Aromatic content (F, Y, W) - strongest predictor
-        aromatic_count = sum(1 for aa in full_seq if aa in "FYW")
-        aromatic_frac = aromatic_count / length
-
-        # Feature 2: Net charge
-        positive_count = sum(1 for aa in full_seq if aa in "KRH")
-        negative_count = sum(1 for aa in full_seq if aa in "DE")
-        net_charge_frac = (positive_count - negative_count) / length
-
-        # Feature 3: SAP score (Surface Accessibility Proxy)
-        # Weight CDR positions more heavily (known exposed)
-        sap_score = sum(WIMLEY_WHITE.get(aa, 0) for aa in full_seq) / length
-
-        # Feature 4: Length contribution
-        # Normalize length around mean ~230
-        length_normalized = (length - 230) / 50
-
-        # ML-optimized linear combination from Ridge regression on 180 antibodies
-        # Weights derived from feature importance analysis (5-fold CV: ρ = 0.38)
-        raw_score = (
-            aromatic_frac * 0.372 +      # Aromatic content (strongest)
-            length_normalized * 0.307 +   # Length contribution
-            -net_charge_frac * 0.147 +    # Net charge (negative correlation)
-            sap_score * 0.095             # Surface hydrophobicity
-        )
-
-        # Scale to 0-100 range
-        # Raw score typically ranges from -0.05 to 0.15
-        # Linear scaling to map to 10-90 range
-        score = 50 + raw_score * 200
-
-        return max(0, min(100, score))
+        if self._hic_predictor is not None:
+            result = self._hic_predictor.predict(vh_sequence, vl_sequence)
+            return result.percentile
+        else:
+            # Fallback to heuristic if ML predictor not available
+            hic_proxy = self._tap_metrics.calculate_hic_proxy(vh_sequence, vl_sequence)
+            return max(0, min(100, 50 + hic_proxy * 100))
 
     def print_report(self, result: AntibodyResult) -> str:
         """
@@ -588,7 +555,7 @@ class AntibodyScorer:
         lines.append(f"\nTotal Score: {result.total_score}/100 ({result.risk_level.upper()} RISK)")
         lines.append(f"TAP Score: {result.tap_score}/100")
         lines.append(f"Liability Score: {result.liability_score}/100")
-        lines.append(f"HIC Proxy: {result.hic_proxy:.3f}")
+        lines.append(f"HIC Score (ML): {result.hic_score}/100 (lower retention = better)")
 
         lines.append("\n" + "-" * 60)
         lines.append("TAP METRICS")
