@@ -39,25 +39,64 @@ echo "=========================================="
 
 cd /home/ubuntu/ProteinScore  # Adjust path as needed
 
-# Option 1: ESM-2 650M (best quality, needs ~8GB VRAM)
-# Works on: g5.xlarge (24GB), g4dn.xlarge (16GB)
+# Create models directory
+mkdir -p models
+
+# ============================================
+# STUDENT MODEL SIZE OPTIONS (for CPU deployment)
+# ============================================
+# tiny:   ~100K params, ~5ms  CPU latency
+# small:  ~300K params, ~10ms CPU latency
+# medium: ~800K params, ~20ms CPU latency (balanced)
+# large:  ~2M params,   ~50ms CPU latency (highest quality)
+
+# ============================================
+# Option 1: ESM-2 650M Teacher + Medium Student
+# ============================================
+# Best quality teacher, balanced student
+# Needs ~8GB VRAM (works on g5.xlarge, g4dn.xlarge)
 python benchmarks/esm_hic_distillation_gpu.py \
     --teacher facebook/esm2_t33_650M_UR50D \
+    --size medium \
     --epochs 300 \
     --alpha 0.3 \
-    --save-model models/hic_distilled_650m.pt
+    --save-model models/hic_distilled_650m_medium.pt
 
-# Option 2: ESM-2 150M (faster, needs ~4GB VRAM)
-# Uncomment if 650M doesn't fit
+# ============================================
+# Option 2: ESM-2 650M Teacher + Tiny Student
+# ============================================
+# Best teacher, smallest student (fastest CPU)
+# Uncomment to train tiny model
 # python benchmarks/esm_hic_distillation_gpu.py \
-#     --teacher facebook/esm2_t30_150M_UR50D \
+#     --teacher facebook/esm2_t33_650M_UR50D \
+#     --size tiny \
 #     --epochs 300 \
 #     --alpha 0.3 \
-#     --save-model models/hic_distilled_150m.pt
+#     --save-model models/hic_distilled_650m_tiny.pt
+
+# ============================================
+# Option 3: ESM-2 150M Teacher (faster training)
+# ============================================
+# Needs ~4GB VRAM
+# python benchmarks/esm_hic_distillation_gpu.py \
+#     --teacher facebook/esm2_t30_150M_UR50D \
+#     --size small \
+#     --epochs 300 \
+#     --alpha 0.3 \
+#     --save-model models/hic_distilled_150m_small.pt
 
 echo ""
 echo "=========================================="
 echo "Training Complete!"
 echo "=========================================="
+echo ""
 echo "Model saved to: models/hic_distilled_*.pt"
-echo "Copy this file back to your local machine for deployment"
+echo ""
+echo "Student Size Options:"
+echo "  tiny:   ~100K params, ~5ms  CPU"
+echo "  small:  ~300K params, ~10ms CPU"
+echo "  medium: ~800K params, ~20ms CPU"
+echo "  large:  ~2M params,   ~50ms CPU"
+echo ""
+echo "Copy model back to local machine:"
+echo "  scp ubuntu@<ec2-ip>:~/ProteinScore/models/*.pt ."

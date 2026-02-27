@@ -64,6 +64,54 @@ class AntibodyHIC:
 # Sequence Feature Extraction
 # =============================================================================
 
+# =============================================================================
+# Model Size Configurations
+# =============================================================================
+
+# Student model size presets for different CPU deployment scenarios
+STUDENT_SIZES = {
+    # Ultra-light: ~100K params, fastest CPU inference (~5ms)
+    'tiny': {
+        'seq_hidden_dim': 32,
+        'seq_output_dim': 64,
+        'global_hidden': 32,
+        'hic_hidden': [64, 32],
+        'embed_hidden': 256,
+        'params_estimate': '~100K',
+        'cpu_latency': '~5ms',
+    },
+    # Light: ~300K params, fast CPU inference (~10ms)
+    'small': {
+        'seq_hidden_dim': 48,
+        'seq_output_dim': 96,
+        'global_hidden': 48,
+        'hic_hidden': [96, 48],
+        'embed_hidden': 384,
+        'params_estimate': '~300K',
+        'cpu_latency': '~10ms',
+    },
+    # Standard: ~800K params, balanced (~20ms)
+    'medium': {
+        'seq_hidden_dim': 64,
+        'seq_output_dim': 128,
+        'global_hidden': 64,
+        'hic_hidden': [128, 64],
+        'embed_hidden': 512,
+        'params_estimate': '~800K',
+        'cpu_latency': '~20ms',
+    },
+    # Large: ~2M params, higher accuracy, slower (~50ms)
+    'large': {
+        'seq_hidden_dim': 96,
+        'seq_output_dim': 192,
+        'global_hidden': 96,
+        'hic_hidden': [192, 96],
+        'embed_hidden': 768,
+        'params_estimate': '~2M',
+        'cpu_latency': '~50ms',
+    },
+}
+
 AA_PROPERTIES = {
     'A': [1.8, 0, 0, 88.6, 0], 'R': [-4.5, 1, 0, 173.4, 0],
     'N': [-3.5, 0, 0, 114.1, 0], 'D': [-3.5, -1, 0, 111.1, 0],
@@ -176,6 +224,12 @@ class HICDistillationStudent(nn.Module):
     - Global feature MLP
     - Combined prediction head
     - Optional embedding projection for distillation
+
+    Supports different model sizes via size_preset:
+    - 'tiny':   ~100K params, ~5ms  CPU latency
+    - 'small':  ~300K params, ~10ms CPU latency
+    - 'medium': ~800K params, ~20ms CPU latency (default)
+    - 'large':  ~2M params,   ~50ms CPU latency
     """
 
     def __init__(
@@ -184,9 +238,38 @@ class HICDistillationStudent(nn.Module):
         seq_hidden_dim: int = 64,
         seq_output_dim: int = 128,
         teacher_embed_dim: int = 1280,  # ESM-2 650M
-        use_distillation: bool = True
+        use_distillation: bool = True,
+        size_preset: str | None = None,  # 'tiny', 'small', 'medium', 'large'
+        hic_hidden: list[int] | None = None,
+        embed_hidden: int | None = None,
+        global_hidden: int | None = None,
     ):
         super().__init__()
+
+        # Apply size preset if specified
+        if size_preset and size_preset in STUDENT_SIZES:
+            cfg = STUDENT_SIZES[size_preset]
+            seq_hidden_dim = cfg['seq_hidden_dim']
+            seq_output_dim = cfg['seq_output_dim']
+            global_hidden = cfg['global_hidden']
+            hic_hidden = cfg['hic_hidden']
+            embed_hidden = cfg['embed_hidden']
+        else:
+            global_hidden = global_hidden or 64
+            hic_hidden = hic_hidden or [128, 64]
+            embed_hidden = embed_hidden or 512
+
+        # Store config for model saving
+        self.config = {
+            'seq_hidden_dim': seq_hidden_dim,
+            'seq_output_dim': seq_output_dim,
+            'global_hidden': global_hidden,
+            'hic_hidden': hic_hidden,
+            'embed_hidden': embed_hidden,
+            'teacher_embed_dim': teacher_embed_dim,
+            'global_feat_dim': global_feat_dim,
+            'size_preset': size_preset,
+        }
 
         # Sequence encoders
         self.vh_encoder = SequenceEncoder(25, seq_hidden_dim, seq_output_dim)
@@ -194,32 +277,35 @@ class HICDistillationStudent(nn.Module):
 
         # Global feature processor
         self.global_mlp = nn.Sequential(
-            nn.Linear(global_feat_dim, 64),
+            nn.Linear(global_feat_dim, global_hidden),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(64, 64)
+            nn.Linear(global_hidden, global_hidden)
         )
 
         # Combined dimension
-        combined_dim = seq_output_dim * 2 + 64
+        combined_dim = seq_output_dim * 2 + global_hidden
 
-        # HIC prediction head
-        self.hic_head = nn.Sequential(
-            nn.Linear(combined_dim, 128),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1)
-        )
+        # HIC prediction head (variable depth)
+        hic_layers = []
+        in_dim = combined_dim
+        for h_dim in hic_hidden:
+            hic_layers.extend([
+                nn.Linear(in_dim, h_dim),
+                nn.ReLU(),
+                nn.Dropout(0.2),
+            ])
+            in_dim = h_dim
+        hic_layers.append(nn.Linear(in_dim, 1))
+        self.hic_head = nn.Sequential(*hic_layers)
 
         # Embedding projection for distillation
         self.use_distillation = use_distillation
         if use_distillation:
             self.embed_projection = nn.Sequential(
-                nn.Linear(combined_dim, 512),
+                nn.Linear(combined_dim, embed_hidden),
                 nn.ReLU(),
-                nn.Linear(512, teacher_embed_dim)
+                nn.Linear(embed_hidden, teacher_embed_dim)
             )
 
     def forward(
@@ -351,6 +437,7 @@ def train_distillation(
     lr: float = 0.001,
     alpha: float = 0.3,  # Distillation weight
     temperature: float = 2.0,
+    size_preset: str = "medium",
     verbose: bool = True
 ) -> tuple[HICDistillationStudent, dict]:
     """Train student model with knowledge distillation."""
@@ -378,9 +465,16 @@ def train_distillation(
     model = HICDistillationStudent(
         global_feat_dim=global_feat_dim,
         teacher_embed_dim=teacher_embed_dim,
-        use_distillation=True
+        use_distillation=True,
+        size_preset=size_preset,
     )
     model = model.to(device)
+
+    # Count parameters
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    if verbose:
+        print(f"\n  Student model size: {size_preset}")
+        print(f"  Parameters: {n_params:,} ({n_params/1e6:.2f}M)")
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=n_epochs)
@@ -474,6 +568,7 @@ def train_direct_student(
     batch_size: int = 16,
     lr: float = 0.001,
     n_folds: int = 5,
+    size_preset: str = "medium",
     verbose: bool = True
 ) -> dict:
     """Train student model directly (no distillation) for comparison."""
@@ -486,6 +581,7 @@ def train_direct_student(
 
     if verbose:
         print(f"\nTraining direct student (no distillation) on {device}...")
+        print(f"  Model size: {size_preset}")
 
     kfold = KFold(n_splits=n_folds, shuffle=True, random_state=42)
     fold_results = []
@@ -500,7 +596,8 @@ def train_direct_student(
 
         model = HICDistillationStudent(
             global_feat_dim=global_feat_dim,
-            use_distillation=False
+            use_distillation=False,
+            size_preset=size_preset,
         )
         model = model.to(device)
 
@@ -635,6 +732,10 @@ def main():
     parser.add_argument("--alpha", "-a", type=float, default=0.3)
     parser.add_argument("--skip-teacher", action="store_true")
     parser.add_argument("--save-model", type=str, help="Save trained model")
+    parser.add_argument("--size", "-s", type=str, default="medium",
+                       choices=["tiny", "small", "medium", "large"],
+                       help="Student model size: tiny (~100K, 5ms), small (~300K, 10ms), "
+                            "medium (~800K, 20ms), large (~2M, 50ms)")
 
     args = parser.parse_args()
     data_dir = Path(args.data_dir)
@@ -643,6 +744,12 @@ def main():
     print("ESM-2 Knowledge Distillation with GPU")
     print("=" * 70)
     print(f"Device: {get_device()}")
+    print(f"Student model size: {args.size}")
+
+    # Show size info
+    size_cfg = STUDENT_SIZES[args.size]
+    print(f"  - Estimated params: {size_cfg['params_estimate']}")
+    print(f"  - CPU latency: {size_cfg['cpu_latency']}")
 
     # Load data
     antibodies = load_hic_data(data_dir)
@@ -652,7 +759,9 @@ def main():
     print("\n" + "=" * 70)
     print("Test 1: Direct Student (No Distillation)")
     print("=" * 70)
-    direct_results = train_direct_student(antibodies, n_epochs=args.epochs)
+    direct_results = train_direct_student(
+        antibodies, n_epochs=args.epochs, size_preset=args.size
+    )
 
     if not args.skip_teacher:
         # Extract teacher embeddings with GPU
@@ -667,7 +776,8 @@ def main():
         # Train with distillation
         distill_model, history = train_distillation(
             antibodies, teacher_embeddings,
-            n_epochs=args.epochs, alpha=args.alpha
+            n_epochs=args.epochs, alpha=args.alpha,
+            size_preset=args.size
         )
 
         # Final evaluation
@@ -692,12 +802,15 @@ def main():
         if args.save_model:
             torch.save({
                 'model_state': distill_model.state_dict(),
-                'config': {
-                    'global_feat_dim': dataset.global_features[0].shape[0],
-                    'teacher_embed_dim': teacher_embeddings.shape[1],
-                }
+                'config': distill_model.config,  # Full model config including size
+                'size_preset': args.size,
+                'teacher_model': args.teacher,
+                'final_rho': distill_rho,
             }, args.save_model)
             print(f"\n  Model saved to {args.save_model}")
+            print(f"  Size preset: {args.size}")
+            n_params = sum(p.numel() for p in distill_model.parameters())
+            print(f"  Parameters: {n_params:,}")
 
     # Summary
     print("\n" + "=" * 70)
